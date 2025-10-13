@@ -38,8 +38,6 @@ public class Player extends GameObject {
         render();
     }
 
-    // --- CÁC PHƯƠNG THỨC DI CHUYỂN ĐƯỢC CẬP NHẬT ---
-
     public void moveLeft() {
         x -= speed;
         if (x < 0) {
@@ -56,7 +54,6 @@ public class Player extends GameObject {
 
     public void moveUp() {
         y -= speed;
-        // Giới hạn trên, ví dụ không cho đi cao hơn nửa màn hình
         double topBoundary = Main.getInstance().getGameConfig().window.height / 2.0;
         if (y < topBoundary) {
             y = topBoundary;
@@ -70,22 +67,17 @@ public class Player extends GameObject {
         }
     }
 
-    // --- PHẦN CÒN LẠI GIỮ NGUYÊN ---
-
-    public void setPosition(double x) {
+    public void setPosition(double x, double y) {
         this.x = x;
+        this.y = y;
+    }
+
+    public void setScore(int score) {
+        this.score = score;
     }
 
     public int getScore() {
         return score;
-    }
-
-    public void incrementScore() {
-        this.score++;
-    }
-
-    public void decrementScore() {
-        this.score--;
     }
 
     public String getUsername() {

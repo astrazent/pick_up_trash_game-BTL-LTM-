@@ -7,18 +7,24 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-
+import java.net.InetSocketAddress;
 public class ClientTCPHandler implements Runnable {
     private final Socket clientSocket;
     private final GameServer server;
     private PrintWriter out;
     private BufferedReader in;
     private String username;
+    private InetSocketAddress udpAddress;
+    private GameRoom currentRoom = null; // Thêm biến để lưu phòng game hiện tại
 
     public ClientTCPHandler(Socket socket, GameServer server) {
         this.clientSocket = socket;
         this.server = server;
     }
+    public void setCurrentRoom(GameRoom room) { this.currentRoom = room; }
+    public void setUdpAddress(InetSocketAddress address) { this.udpAddress = address; }
+    public InetSocketAddress getUdpAddress() { return this.udpAddress; }
+    public String getUsername() { return this.username; } // Thêm getter
 
     @Override
     public void run() {
@@ -51,6 +57,10 @@ public class ClientTCPHandler implements Runnable {
     }
 
     private void handleClientMessage(String message) {
+        if (currentRoom != null && !message.startsWith("LOGIN") && !message.startsWith("READY")) {
+            currentRoom.handleGameMessage(message, this.username);
+            return; // Đã xử lý, không cần chạy switch-case bên dưới nữa
+        }
         String[] parts = message.split(";");
         String command = parts[0];
 
@@ -72,7 +82,7 @@ public class ClientTCPHandler implements Runnable {
             case "READY":
                 // Message format: "READY;username"
                 if (parts.length == 2) {
-                    server.playerIsReady(parts[1]);
+                    server.playerIsReady(this);
                 }
                 break;
 

@@ -19,9 +19,7 @@ public class GameLoop extends AnimationTimer {
     private final List<TrashBin> trashBins;
 
     private final double screenWidth;
-    private final double screenHeight; // <-- THÊM BIẾN screenHeight
-    private long lastTrashSpawnTime = 0;
-    private final long trashSpawnInterval;
+    private final double screenHeight;
 
     public GameLoop(GameScene gameScene, InputHandler inputHandler, Player player1, Player player2, List<Trash> trashList, List<TrashBin> trashBins) {
         this.gameScene = gameScene;
@@ -33,36 +31,16 @@ public class GameLoop extends AnimationTimer {
 
         GameConfig config = Main.getInstance().getGameConfig();
         this.screenWidth = config.window.width;
-        this.screenHeight = config.window.height; // <-- LẤY CHIỀU CAO MÀN HÌNH
-        this.trashSpawnInterval = (long) config.trash.spawn_rate_ms * 1_000_000;
+        this.screenHeight = config.window.height;
     }
 
     @Override
     public void handle(long now) {
-        // 1. Xử lý Input và di chuyển Player 1
-        // Di chuyển ngang
-        if (inputHandler.isKeyPressed(KeyCode.A) || inputHandler.isKeyPressed(KeyCode.LEFT)) {
-            player1.moveLeft();
-        }
-        if (inputHandler.isKeyPressed(KeyCode.D) || inputHandler.isKeyPressed(KeyCode.RIGHT)) {
-            player1.moveRight(screenWidth);
-        }
-        // THÊM: Di chuyển dọc
-        if (inputHandler.isKeyPressed(KeyCode.W) || inputHandler.isKeyPressed(KeyCode.UP)) {
-            player1.moveUp();
-        }
-        if (inputHandler.isKeyPressed(KeyCode.S) || inputHandler.isKeyPressed(KeyCode.DOWN)) {
-            player1.moveDown(screenHeight);
-        }
+        handlePlayerMovement();
 
-        // Gửi thông tin vị trí lên server
-        if (player2 != null) {
-            // UDP không tin cậy, nên gửi cả x và y
-            String message = String.format("UPDATE_POS;%s;%f;%f", player1.getUsername(), player1.getX(), player1.getY());
-            Client.getInstance().sendUDPMessage(message);
-        }
+        String posMessage = String.format("UPDATE_POS;%s;%f;%f", player1.getUsername(), player1.getX(), player1.getY());
+        Client.getInstance().sendUDPMessage(posMessage);
 
-        // 2. Cập nhật các đối tượng trong game
         player1.update();
         if (player2 != null) {
             player2.update();
@@ -74,69 +52,43 @@ public class GameLoop extends AnimationTimer {
             }
         }
 
-        // 3. Xử lý va chạm VÀ LOGIC THẢ RÁC
-        checkCollisionsAndActions(); // Đổi tên hàm cho rõ nghĩa hơn
-
-        // 4. Reset rác nếu rơi ra ngoài màn hình
-        for (Trash trash : trashList) {
-            if (trash.getY() > screenHeight) {
-                trash.resetPosition(screenWidth);
-            }
-        }
-
-        // 5. Tạo rác mới theo thời gian
-        if (now - lastTrashSpawnTime > trashSpawnInterval && trashList.size() < 2) {
-            gameScene.spawnTrash();
-            lastTrashSpawnTime = now;
-        }
-
-        // 6. Cập nhật UI (điểm số)
-        gameScene.updateScores();
+        handlePlayerActions();
     }
 
-    private void checkCollisionsAndActions() {
-        handlePlayerLogic(player1);
-        if(player2 != null) {
-            // Logic cho player2 sẽ cần được xử lý thông qua tin nhắn từ server
-            // để tránh xung đột. Tạm thời chỉ xử lý va chạm cho player1.
+    private void handlePlayerMovement() {
+        if (inputHandler.isKeyPressed(KeyCode.A) || inputHandler.isKeyPressed(KeyCode.LEFT)) {
+            player1.moveLeft();
+        }
+        if (inputHandler.isKeyPressed(KeyCode.D) || inputHandler.isKeyPressed(KeyCode.RIGHT)) {
+            player1.moveRight(screenWidth);
+        }
+        if (inputHandler.isKeyPressed(KeyCode.W) || inputHandler.isKeyPressed(KeyCode.UP)) {
+            player1.moveUp();
+        }
+        if (inputHandler.isKeyPressed(KeyCode.S) || inputHandler.isKeyPressed(KeyCode.DOWN)) {
+            player1.moveDown(screenHeight);
         }
     }
 
-    // --- HÀM LOGIC CHÍNH ĐƯỢC SỬA ĐỔI ---
-    private void handlePlayerLogic(Player player) {
-        // A. NẾU NGƯỜI CHƠI ĐANG KHÔNG CẦM RÁC -> KIỂM TRA NHẶT RÁC
-        if (!player.isHoldingTrash()) {
+    private void handlePlayerActions() {
+        if (!player1.isHoldingTrash()) {
             for (Trash trash : trashList) {
-                // Rác chạm vào người chơi là nhặt
-                if (player.checkCollision(trash)) {
-                    player.pickUpTrash(trash);
-                    break; // Chỉ nhặt 1 rác mỗi lần
+                if (player1.checkCollision(trash)) {
+                    String message = String.format("PICK_TRASH;%s;%d", player1.getUsername(), trash.getId());
+                    Client.getInstance().sendMessage(message);
+                    break;
                 }
             }
-        }
-        // B. NẾU NGƯỜI CHƠI ĐANG CẦM RÁC VÀ BẤM ENTER -> KIỂM TRA THẢ VÀO THÙNG
-        else if (inputHandler.isKeyPressed(KeyCode.ENTER)) {
-            Trash heldTrash = player.getHeldTrash();
-            boolean dropped = false; // Biến kiểm tra xem đã thả rác chưa
-
+        } else if (inputHandler.isKeyPressed(KeyCode.SPACE)) {
+            boolean onBin = false;
             for (TrashBin bin : trashBins) {
-                // Kiểm tra xem người chơi có đang ở trên thùng rác không
-                if (player.checkCollision(bin)) {
-                    // Kiểm tra xem có thả đúng loại rác không
-                    if (heldTrash.getType() == bin.getBinType()) {
-                        player.incrementScore(); // Cộng điểm
-                    } else {
-                        player.decrementScore(); // Trừ điểm
-                    }
-                    heldTrash.resetPosition(screenWidth); // Reset vị trí rác
-                    player.dropTrash(); // Người chơi thả rác
-                    dropped = true;
-                    break; // Thoát khỏi vòng lặp vì đã xử lý xong
+                if (player1.checkCollision(bin)) {
+                    String message = String.format("DROP_TRASH;%s;%s", player1.getUsername(), bin.getBinType().name());
+                    Client.getInstance().sendMessage(message);
+                    onBin = true;
+                    break;
                 }
             }
-
-            // Nếu người chơi bấm Enter nhưng không đứng trên thùng rác nào
-            // bạn có thể thêm logic phạt ở đây nếu muốn. Hiện tại, không làm gì cả.
         }
     }
 }
