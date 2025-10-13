@@ -1,0 +1,4 @@
+server:
+  host: "localhost" # Thay bằng IP của server nếu chạy trên máy khác
+  tcp_port: 9999
+  udp_port: 9998

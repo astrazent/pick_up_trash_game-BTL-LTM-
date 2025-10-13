@@ -1,0 +1,65 @@
+2025-10-12 17:17:04 INFO  [Thread-0] gamePlay.network.Client - Preparing to send: messageToSend
+2025-10-12 17:19:10 INFO  [Thread-0] gamePlay.network.Client - Preparing to send: messageToSend
+2025-10-12 17:22:19 INFO  [Thread-0] gamePlay.network.TCPServer - TCP Server ready on port 9999
+2025-10-12 17:50:28 INFO  [Thread-0] gamePlay.network.TCPServer - TCP Server ready on port 9999
+2025-10-12 17:58:31 INFO  [Thread-0] gamePlay.network.TCPServer - TCP Server ready on port 9999
+2025-10-12 17:59:02 INFO  [Thread-3] gamePlay.network.Client - Preparing to send: LOGIN:player1:123
+2025-10-12 17:59:03 DEBUG [Thread-3] gamePlay.network.Client - Received from server: LOGIN_SUCCESS:player1
+2025-10-12 17:59:03 INFO  [JavaFX Application Thread] gamePlay.LoginController - User 'player1' logged in successfully.
+2025-10-12 17:59:03 ERROR [JavaFX Application Thread] gamePlay.LoginController - Failed to load menu scene
+javafx.fxml.LoadException: 
+/C:/Users/phann/IdeaProjects/pick_up_trash/build/resources/main/fxml/menu.fxml:9
+
+	at javafx.fxml/javafx.fxml.FXMLLoader.constructLoadException(FXMLLoader.java:2707)
+	at javafx.fxml/javafx.fxml.FXMLLoader$ValueElement.processAttribute(FXMLLoader.java:933)
+	at javafx.fxml/javafx.fxml.FXMLLoader$InstanceDeclarationElement.processAttribute(FXMLLoader.java:981)
+	at javafx.fxml/javafx.fxml.FXMLLoader$Element.processStartElement(FXMLLoader.java:230)
+	at javafx.fxml/javafx.fxml.FXMLLoader$ValueElement.processStartElement(FXMLLoader.java:755)
+	at javafx.fxml/javafx.fxml.FXMLLoader.processStartElement(FXMLLoader.java:2808)
+	at javafx.fxml/javafx.fxml.FXMLLoader.loadImpl(FXMLLoader.java:2634)
+	at javafx.fxml/javafx.fxml.FXMLLoader.loadImpl(FXMLLoader.java:2548)
+	at javafx.fxml/javafx.fxml.FXMLLoader.load(FXMLLoader.java:2516)
+	at gamePlay.Main.showMenuScene(Main.java:40)
+	at gamePlay.LoginController.lambda$handleLogin$1(LoginController.java:58)
+	at javafx.graphics/com.sun.javafx.application.PlatformImpl.lambda$runLater$10(PlatformImpl.java:457)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:138)
+	at javafx.graphics/com.sun.javafx.application.PlatformImpl.lambda$runLater$11(PlatformImpl.java:456)
+	at javafx.graphics/com.sun.glass.ui.InvokeLaterDispatcher$Future.run(InvokeLaterDispatcher.java:96)
+	at javafx.graphics/com.sun.glass.ui.win.WinApplication._runLoop(Native Method)
+	at javafx.graphics/com.sun.glass.ui.win.WinApplication.lambda$runLoop$3(WinApplication.java:184)
+	at java.base/java.lang.Thread.run(Thread.java:1447)
+Caused by: java.lang.ClassNotFoundException: com.mygame.scenes.MenuController
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:580)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+	at javafx.fxml/javafx.fxml.FXMLLoader$ValueElement.processAttribute(FXMLLoader.java:931)
+	... 16 common frames omitted
+2025-10-12 17:59:08 INFO  [Thread-4] gamePlay.network.Client - Preparing to send: LOGIN:player1:123
+2025-10-12 17:59:08 DEBUG [Thread-4] gamePlay.network.Client - Received from server: LOGIN_SUCCESS:player1
+2025-10-12 17:59:08 INFO  [JavaFX Application Thread] gamePlay.LoginController - User 'player1' logged in successfully.
+2025-10-12 17:59:08 ERROR [JavaFX Application Thread] gamePlay.LoginController - Failed to load menu scene
+javafx.fxml.LoadException: 
+/C:/Users/phann/IdeaProjects/pick_up_trash/build/resources/main/fxml/menu.fxml:9
+
+	at javafx.fxml/javafx.fxml.FXMLLoader.constructLoadException(FXMLLoader.java:2707)
+	at javafx.fxml/javafx.fxml.FXMLLoader$ValueElement.processAttribute(FXMLLoader.java:933)
+	at javafx.fxml/javafx.fxml.FXMLLoader$InstanceDeclarationElement.processAttribute(FXMLLoader.java:981)
+	at javafx.fxml/javafx.fxml.FXMLLoader$Element.processStartElement(FXMLLoader.java:230)
+	at javafx.fxml/javafx.fxml.FXMLLoader$ValueElement.processStartElement(FXMLLoader.java:755)
+	at javafx.fxml/javafx.fxml.FXMLLoader.processStartElement(FXMLLoader.java:2808)
+	at javafx.fxml/javafx.fxml.FXMLLoader.loadImpl(FXMLLoader.java:2634)
+	at javafx.fxml/javafx.fxml.FXMLLoader.loadImpl(FXMLLoader.java:2548)
+	at javafx.fxml/javafx.fxml.FXMLLoader.load(FXMLLoader.java:2516)
+	at gamePlay.Main.showMenuScene(Main.java:40)
+	at gamePlay.LoginController.lambda$handleLogin$1(LoginController.java:58)
+	at javafx.graphics/com.sun.javafx.application.PlatformImpl.lambda$runLater$10(PlatformImpl.java:457)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:138)
+	at javafx.graphics/com.sun.javafx.application.PlatformImpl.lambda$runLater$11(PlatformImpl.java:456)
+	at javafx.graphics/com.sun.glass.ui.InvokeLaterDispatcher$Future.run(InvokeLaterDispatcher.java:96)
+	at javafx.graphics/com.sun.glass.ui.win.WinApplication._runLoop(Native Method)
+	at javafx.graphics/com.sun.glass.ui.win.WinApplication.lambda$runLoop$3(WinApplication.java:184)
+	at java.base/java.lang.Thread.run(Thread.java:1447)
+Caused by: java.lang.ClassNotFoundException: com.mygame.scenes.MenuController
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:580)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+	at javafx.fxml/javafx.fxml.FXMLLoader$ValueElement.processAttribute(FXMLLoader.java:931)
+	... 16 common frames omitted

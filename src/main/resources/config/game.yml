@@ -1,0 +1,15 @@
+window:
+  title: "Pick Up Trash"
+  width: 800
+  height: 600
+player:
+  speed: 8
+  width: 60
+  height: 80
+trash:
+  fall_speed: 2
+  spawn_rate_ms: 2000 # Tần suất rác rơi (mili giây)
+  width: 30
+  height: 30
+game:
+  fps: 60

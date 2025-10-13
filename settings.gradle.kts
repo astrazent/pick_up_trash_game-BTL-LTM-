@@ -1,0 +1,1 @@
+rootProject.name = "pick_up_trash"
