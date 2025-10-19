@@ -1,7 +1,10 @@
 package gamePlay.network;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import gamePlay.Main;
 import gamePlay.config.NetworkConfig;
+import gamePlay.data.UserProfile;
 import gamePlay.game.Player;
 import gamePlay.game.Trash;
 import gamePlay.game.TrashType;
@@ -13,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.*;
+import java.util.Arrays;
 
 public class Client {
     private static Client instance;
@@ -25,7 +29,7 @@ public class Client {
     private PrintWriter tcpOut;
     private BufferedReader tcpIn;
 
-    private String username;
+    private UserProfile userProfile;
 
     private Client(NetworkConfig config) {
         this.host = config.server.host;
@@ -61,7 +65,7 @@ public class Client {
             String serverMessage;
             while ((serverMessage = tcpIn.readLine()) != null) {
                 System.out.println("Nhận TCP từ Server: " + serverMessage);
-                String[] parts = serverMessage.split(";");
+                final String[] parts = serverMessage.split(";");
                 Platform.runLater(() -> handleServerMessage(parts));
             }
         } catch (IOException e) {
@@ -75,17 +79,18 @@ public class Client {
             while (!udpSocket.isClosed()) {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 udpSocket.receive(packet);
-
                 String message = new String(packet.getData(), 0, packet.getLength());
+                System.out.printf("client.java: %s", message);
                 String[] parts = message.split(";");
 
                 // Cập nhật để nhận cả x và y
                 if (parts.length == 4 && parts[0].equals("UPDATE_POS")) {
+                    System.out.printf("cập nhật vị trí (client.java): %s", message);
                     String senderUsername = parts[1];
                     double xPos = Double.parseDouble(parts[2]);
                     double yPos = Double.parseDouble(parts[3]);
 
-                    if (this.username != null && !senderUsername.equals(this.username)) {
+                    if (getUsername() != null && !senderUsername.equals(getUsername())) {
                         Platform.runLater(() -> {
                             GameScene game = Main.getInstance().getActiveGameScene();
                             if (game != null) {
@@ -102,22 +107,70 @@ public class Client {
 
     private void handleServerMessage(String[] messageParts) {
         GameScene game = Main.getInstance().getActiveGameScene();
-
+        System.out.println("check_handleServerMesssage: " + Arrays.toString(messageParts));
         switch (messageParts[0]) {
             case "LOGIN_SUCCESS":
-                this.username = messageParts[1];
-                Main.getInstance().showMenuScene();
+                if (messageParts.length < 2) {
+                    Main.getInstance().getLoginScene().showError("Phản hồi đăng nhập không hợp lệ.");
+                    return;
+                }
+                try {
+                    String jsonData = messageParts[1];
+                    Gson gson = new Gson();
+                    // Chuyển chuỗi JSON thành đối tượng UserProfile
+                    this.userProfile = gson.fromJson(jsonData, UserProfile.class);
+
+                    if (this.userProfile != null && this.userProfile.getUsername() != null) {
+                        System.out.println("Đăng nhập thành công! Chào mừng " + this.userProfile.getUsername());
+                        System.out.println("Thông tin người dùng: " + this.userProfile.toString());
+                        Main.getInstance().showMenuScene();
+                    } else {
+                        Main.getInstance().getLoginScene().showError("Dữ liệu người dùng từ server không hợp lệ.");
+                    }
+                } catch (JsonSyntaxException e) {
+                    // Xử lý lỗi nếu server gửi về một chuỗi JSON không đúng định dạng
+                    System.err.println("Lỗi phân tích JSON từ server: " + e.getMessage());
+                    Main.getInstance().getLoginScene().showError("Lỗi dữ liệu từ server.");
+                }
                 break;
 
             case "LOGIN_FAILED":
-                Main.getInstance().getLoginScene().showError(messageParts[1]);
+                String errorMessage = (messageParts.length > 1) ? messageParts[1] : "Tên đăng nhập hoặc mật khẩu không đúng.";
+                Main.getInstance().getLoginScene().showError(errorMessage);
                 break;
 
             case "START_GAME":
                 if (messageParts.length == 3) {
+                    // 2 player
                     String player1Name = messageParts[1];
                     String player2Name = messageParts[2];
-                    Main.getInstance().showGameScene(2, player1Name, player2Name);
+                    String myUsername = Client.getInstance().getUsername();
+                    String localPlayerName;
+                    String remotePlayerName;
+
+                    if (myUsername.equals(player1Name)) {
+                        // Mình là player1
+                        localPlayerName = player1Name;
+                        remotePlayerName = player2Name;
+                    } else if (myUsername.equals(player2Name)) {
+                        // Mình là player2
+                        localPlayerName = player2Name;
+                        remotePlayerName = player1Name;
+                    } else {
+                        // Trường hợp không khớp username (nên log để debug)
+                        System.out.println("START_GAME: username client không khớp với serverMessage");
+                        localPlayerName = myUsername;
+                        remotePlayerName = null;
+                    }
+                    // Gọi GameScene với vị trí chính xác
+                    Main.getInstance().showGameScene(2, localPlayerName, remotePlayerName);
+                } else if (messageParts.length == 2) {
+                    // 1 player
+                    String player1Name = messageParts[1];
+                    System.out.println("check_playerName-client: " + player1Name);
+                    Main.getInstance().showGameScene(1, player1Name, null);
+                } else {
+                    System.out.println("START_GAME: messageParts không hợp lệ: " + Arrays.toString(messageParts));
                 }
                 break;
 
@@ -128,14 +181,23 @@ public class Client {
                 }
                 break;
 
-            case "SCORE_UPDATE": // Server: SCORE_UPDATE;user1;score1;user2;score2
-                if (game != null && messageParts.length == 5) {
-                    String p1Name = messageParts[1];
-                    int p1Score = Integer.parseInt(messageParts[2]);
-                    String p2Name = messageParts[3];
-                    int p2Score = Integer.parseInt(messageParts[4]);
-                    game.updatePlayerScore(p1Name, p1Score);
-                    game.updatePlayerScore(p2Name, p2Score);
+            case "SCORE_UPDATE": // Server: SCORE_UPDATE;user1;score1;[user2;score2]
+                if (game != null) {
+                    try {
+                        if (messageParts.length >= 3) {
+                            String p1Name = messageParts[1];
+                            int p1Score = Integer.parseInt(messageParts[2]);
+                            game.updatePlayerScore(p1Name, p1Score);
+                        }
+
+                        if (messageParts.length >= 5) {
+                            String p2Name = messageParts[3];
+                            int p2Score = Integer.parseInt(messageParts[4]);
+                            game.updatePlayerScore(p2Name, p2Score);
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Lỗi khi xử lý SCORE_UPDATE: " + e.getMessage());
+                    }
                 }
                 break;
 
@@ -184,6 +246,23 @@ public class Client {
                 }
                 break;
 
+            case "PAUSE_GAME":
+                if (game != null && messageParts.length == 4) {
+                    String timeLeft = messageParts[1];
+                    String chanceLeft = messageParts[2];
+                    String pauserUsername = messageParts[3];
+                    // Gọi hàm trong GameScene để hiển thị giao diện tạm dừng
+                    game.handleGamePaused(pauserUsername, timeLeft, chanceLeft);
+                }
+                break;
+
+            // MỚI (Khuyến nghị): Xử lý khi game được tiếp tục
+            case "GAME_RESUMED":
+                if (game != null) {
+                    game.handleGameResumed();
+                }
+                break;
+
             case "GAME_OVER": // Server: GAME_OVER;winnerName;message
                 if (game != null && messageParts.length >= 2) {
                     String winner = messageParts[1];
@@ -191,6 +270,17 @@ public class Client {
                 }
                 break;
         }
+    }
+    // MỚI: Hàm để gửi yêu cầu tạm dừng game đến server
+    public void requestPauseGame() {
+        // Server đã biết bạn là ai thông qua kết nối TCP,
+        // bạn chỉ cần gửi lệnh.
+        sendMessage("PAUSE_GAME");
+    }
+
+    // MỚI (Khuyến nghị): Hàm để gửi yêu cầu tiếp tục game
+    public void requestResumeGame() {
+        sendMessage("RESUME_GAME");
     }
 
     public void sendMessage(String message) {
@@ -209,7 +299,11 @@ public class Client {
     }
 
     public String getUsername() {
-        return username;
+        return (this.userProfile != null) ? this.userProfile.getUsername() : null;
+    }
+
+    public UserProfile getUserProfile() {
+        return this.userProfile;
     }
 
     public void close() {

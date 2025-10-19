@@ -23,12 +23,17 @@ class TrashState {
 
 public class GameRoom implements Runnable {
     private final ClientTCPHandler player1;
-    private final ClientTCPHandler player2;
+    public final ClientTCPHandler player2;
     private final GameServer server;
+    private final String roomCode; // Mã phòng (6 ký tự)
+    private Thread pauseThread;
+    private volatile boolean isRunning = false; // MỚI: Sử dụng volatile để đảm bảo an toàn luồng
+    private volatile boolean isPaused = false;  // MỚI: Biến trạng thái để kiểm soát việc tạm dừng game
 
-    private boolean isRunning = false;
     private final int gameDurationSeconds = 120;
     private final long trashSpawnIntervalMs = 5000;
+    private int pauseChancesPlayer1 = 3; // Số lượt dừng còn lại player 1
+    private int pauseChancesPlayer2 = 3; // Số lượt dừng còn lại player 2
 
     private static final AtomicInteger trashIdCounter = new AtomicInteger(0);
 
@@ -38,35 +43,70 @@ public class GameRoom implements Runnable {
     public GameRoom(ClientTCPHandler p1, ClientTCPHandler p2, GameServer server) {
         this.player1 = p1;
         this.player2 = p2;
+        System.out.println("h1: " + System.identityHashCode(p1) + " h2: "+ System.identityHashCode(p2));
         this.server = server;
         playerScores.put(p1.getUsername(), 0);
         playerScores.put(p2.getUsername(), 0);
+        this.roomCode = "2P" + generateRoomCode();
+    }
+    public GameRoom(ClientTCPHandler p1, GameServer server) {
+        this.player1 = p1;
+        this.player2 = null; // Quan trọng: Đánh dấu đây là phòng 1 người chơi
+        this.server = server;
+        playerScores.put(p1.getUsername(), 0);
+        this.roomCode = "1P" + generateRoomCode();
+    }
+    // Hàm tạo mã phòng ngẫu nhiên 6 ký tự (chữ + số in hoa)
+    private String generateRoomCode() {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder code = new StringBuilder(6);
+        for (int i = 0; i < 6; i++) {
+            int index = (int) (Math.random() * chars.length());
+            code.append(chars.charAt(index));
+        }
+        return code.toString();
+    }
+
+    // Getter cho mã phòng (không có setter)
+    public String getRoomCode() {
+        return roomCode;
     }
 
     @Override
     public void run() {
         try {
             isRunning = true;
-            System.out.println("SERVER: GameRoom bắt đầu giữa " + player1.getUsername() + " và " + player2.getUsername());
-            broadcast("START_GAME;" + player1.getUsername() + ";" + player2.getUsername());
+            if (player2 != null) {
+                System.out.println("SERVER: GameRoom bắt đầu giữa " + player1.getUsername() + " và " + player2.getUsername());
+                broadcast("START_GAME;" + player1.getUsername() + ";" + player2.getUsername());
+            } else {
+                System.out.println("SERVER: GameRoom (1P) bắt đầu cho " + player1.getUsername());
+                broadcast("START_GAME;" + player1.getUsername());
+            }
 
             int secondsLeft = gameDurationSeconds;
             long lastTrashSpawnTime = System.currentTimeMillis();
 
             while (isRunning && secondsLeft > 0) {
-                Thread.sleep(1000);
-                secondsLeft--;
+                // MỚI: Chỉ xử lý logic game nếu không bị tạm dừng
+                if (!isPaused) {
+                    Thread.sleep(1000);
+                    secondsLeft--;
 
-                broadcast("TIMER_UPDATE;" + secondsLeft);
+                    broadcast("TIMER_UPDATE;" + secondsLeft);
 
-                if (System.currentTimeMillis() - lastTrashSpawnTime > trashSpawnIntervalMs) {
-                    spawnNewTrash();
-                    lastTrashSpawnTime = System.currentTimeMillis();
+                    if (System.currentTimeMillis() - lastTrashSpawnTime > trashSpawnIntervalMs) {
+                        spawnNewTrash();
+                        lastTrashSpawnTime = System.currentTimeMillis();
+                    }
+                } else {
+                    // Khi game tạm dừng, luồng sẽ nghỉ một chút để không chiếm dụng CPU
+                    Thread.sleep(100);
                 }
             }
 
             System.out.println("SERVER: [Room " + player1.getUsername() + "] Game Over.");
-            broadcast("GAME_OVER;Player1"); // Tạm thời người thắng là Player1
+            broadcast("GAME_OVER");
 
         } catch (InterruptedException e) {
             System.out.println("GameRoom bị gián đoạn.");
@@ -89,7 +129,6 @@ public class GameRoom implements Runnable {
     public void handleGameMessage(String message, String senderUsername) {
         String[] parts = message.split(";");
         String command = parts[0];
-
         switch (command) {
             case "PICK_TRASH":
                 handlePickTrash(senderUsername, Integer.parseInt(parts[2]));
@@ -97,6 +136,82 @@ public class GameRoom implements Runnable {
             case "DROP_TRASH":
                 handleDropTrash(senderUsername, parts[2]);
                 break;
+            case "PAUSE_GAME":
+                //dữ liệu nhận: PAUSE_GAME;player1
+                handlePauseGame(senderUsername);
+                break;
+            case "RESUME_GAME":
+                handleResumeGame(senderUsername);
+                break;
+        }
+    }
+
+    // MỚI: Hàm xử lý yêu cầu tạm dừng game
+    private void handlePauseGame(String pauserUsername) {
+        int chanceLeft = 0; // <-- khai báo trước
+
+        // Xác định người tạm dừng
+        if (player1 != null && player1.getUsername().equals(pauserUsername)) {
+            pauseChancesPlayer1--;
+            chanceLeft = pauseChancesPlayer1; // gán giá trị
+        } else if (player2 != null && player2.getUsername().equals(pauserUsername)) {
+            pauseChancesPlayer2--;
+            chanceLeft = pauseChancesPlayer2;
+        } else {
+            System.out.println("SERVER: Không có người chơi tồn tại!");
+            return;
+        }
+
+        if (chanceLeft < 0) {
+            System.out.println("SERVER: " + pauserUsername + " đã hết lượt tạm dừng!");
+            broadcast("PAUSE_GAME;-1;" + chanceLeft + ";" + pauserUsername);
+            return;
+        }
+
+        if (!isPaused) {
+            isPaused = true;
+            final int finalChanceLeft = chanceLeft; // <- copy sang biến final để dùng trong lambda
+
+            System.out.println("SERVER: Game đã được tạm dừng bởi " + pauserUsername);
+
+            pauseThread = new Thread(() -> {
+                int waitTime = 15;
+                try {
+                    for (int i = waitTime; i > 0; i--) {
+                        if (!isPaused) return; // <-- nếu resume sớm thì thoát khỏi vòng lặp
+                        broadcast("PAUSE_GAME;" + i + ";" + finalChanceLeft + ";" + pauserUsername);
+                        System.out.println("SERVER: Game đang tạm dừng (" + i + "s còn lại) bởi " + pauserUsername);
+                        Thread.sleep(1000);
+                    }
+
+                    if (isPaused) {
+                        System.out.println("SERVER: Hết 15 giây tạm dừng, tự động tiếp tục game.");
+                        handleResumeGame("AUTO");
+                    }
+                } catch (InterruptedException e) {
+                    System.out.println("SERVER: Thread pause bị ngắt — resume sớm.");
+                    Thread.currentThread().interrupt(); // best practice
+                }
+            });
+            pauseThread.start();
+        } else {
+            System.out.println("SERVER: Game đang tạm dừng rồi — bỏ qua yêu cầu mới.");
+        }
+    }
+
+
+    // MỚI (Khuyến nghị): Hàm xử lý yêu cầu tiếp tục game
+    private void handleResumeGame(String resumerUsername) {
+        if (isPaused) {
+            isPaused = false;
+
+            // Ngắt thread đếm ngược nếu còn chạy
+            if (pauseThread != null && pauseThread.isAlive()) {
+                pauseThread.interrupt();
+            }
+
+            System.out.println("SERVER: Game đã được tiếp tục bởi " + resumerUsername);
+            broadcast("GAME_RESUMED;" + resumerUsername);
         }
     }
 
@@ -125,21 +240,32 @@ public class GameRoom implements Runnable {
         }
 
         if (heldTrash != null) {
-            TrashType binType = TrashType.valueOf(binTypeName);
+            final TrashType binType = TrashType.valueOf(binTypeName);
+            final TrashType trashType = heldTrash.type; // <- thêm dòng này
 
-            if (heldTrash.type == binType) {
-                playerScores.compute(username, (k, v) -> v + 1);
+            // Cập nhật điểm
+            playerScores.compute(username, (k, v) -> (v == null ? 0 : v) + (trashType == binType ? 1 : -1));
+
+            // Lấy điểm hiện tại
+            int p1Score = playerScores.getOrDefault(player1.getUsername(), 0);
+            int p2Score = (player2 != null) ? playerScores.getOrDefault(player2.getUsername(), 0) : 0;
+
+            // Gửi cập nhật điểm
+            if (player2 != null) {
+                broadcast(String.format("SCORE_UPDATE;%s;%d;%s;%d",
+                        player1.getUsername(), p1Score,
+                        player2.getUsername(), p2Score
+                ));
             } else {
-                playerScores.compute(username, (k, v) -> v - 1);
+                broadcast(String.format("SCORE_UPDATE;%s;%d",
+                        player1.getUsername(), p1Score
+                ));
             }
 
-            broadcast(String.format("SCORE_UPDATE;%s;%d;%s;%d",
-                    player1.getUsername(), playerScores.get(player1.getUsername()),
-                    player2.getUsername(), playerScores.get(player2.getUsername())
-            ));
-
+            // Gửi thông báo rác đã được thả
             broadcast("TRASH_DROPPED;" + username + ";" + trashId);
 
+            // Reset rác
             heldTrash.heldBy = null;
             heldTrash.x = Math.random() * 750;
             heldTrash.y = -50;
@@ -152,11 +278,18 @@ public class GameRoom implements Runnable {
     }
 
     public void broadcast(String message) {
-        player1.sendMessage(message);
-        player2.sendMessage(message);
+        if (player1 != null) {
+            player1.sendMessage(message);
+        }
+        // Chỉ gửi cho player2 nếu player2 tồn tại
+        if (player2 != null) {
+            player2.sendMessage(message);
+        }
     }
+
     public void broadcastUDP(String message, String senderUsername) {
         // 1. Xác định người nhận là ai
+        System.out.println("check_broadcastUDP: " + message);
         ClientTCPHandler receiver;
         if (player1.getUsername().equals(senderUsername)) {
             receiver = player2;

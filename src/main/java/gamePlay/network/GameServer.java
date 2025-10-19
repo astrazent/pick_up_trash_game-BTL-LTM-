@@ -13,7 +13,6 @@ public class GameServer {
     private final int udpPort;
 
     private final Set<ClientTCPHandler> clientHandlers = Collections.synchronizedSet(new HashSet<>());
-    private final ConcurrentHashMap<String, InetSocketAddress> connectedClients = new ConcurrentHashMap<>();
     private final List<ClientTCPHandler> waitingPlayers = Collections.synchronizedList(new ArrayList<>());
     private final List<GameRoom> activeRooms = Collections.synchronizedList(new ArrayList<>());
     private DatagramSocket udpSocket;
@@ -55,7 +54,7 @@ public class GameServer {
                 udpSocket.receive(packet);
                 String message = new String(packet.getData(), 0, packet.getLength());
                 String[] parts = message.split(";");
-
+                System.out.println("check_startUDP: " + message);
                 if (parts.length < 2) continue;
                 String username = parts[1];
 
@@ -65,7 +64,6 @@ public class GameServer {
                 if (handler != null) {
                     handler.setUdpAddress(clientAddress);
                 }
-
                 // --- Tìm phòng mà người chơi này đang ở ---
                 GameRoom room = findRoomByPlayer(username);
                 if (room != null) {
@@ -76,6 +74,7 @@ public class GameServer {
             System.err.println("Lỗi UDP Server: " + e.getMessage());
         }
     }
+
     public void sendUDPMessage(String message, InetSocketAddress targetAddress) {
         try {
             byte[] data = message.getBytes();
@@ -88,9 +87,21 @@ public class GameServer {
         }
     }
 
-    public synchronized void playerIsReady(ClientTCPHandler readyPlayer) {
+    public synchronized void playerIsReady(ClientTCPHandler readyPlayer, int playerCount) {
+        // TRƯỜNG HỢP 1: Chế độ một người chơi
+        if (playerCount == 1) {
+            System.out.println("Yêu cầu chơi đơn từ: " + readyPlayer.getUsername() + ". Tạo phòng game mới.");
+            GameRoom newRoom = new GameRoom(readyPlayer, this); // Sử dụng constructor mới của GameRoom
+            readyPlayer.setCurrentRoom(newRoom);
+            activeRooms.add(newRoom);
+            new Thread(newRoom).start();
+            return; // Kết thúc, không cần thêm vào hàng đợi
+        }
+
+        // TRƯỜNG HỢP 2: Chế độ hai người chơi (giữ nguyên logic cũ)
         if (!waitingPlayers.contains(readyPlayer)) {
             waitingPlayers.add(readyPlayer);
+            System.out.println("check_handle-player-is-ready:" + System.identityHashCode(readyPlayer));
             System.out.println("Player is ready: " + readyPlayer.getUsername() + ". Total waiting: " + waitingPlayers.size());
         }
 
@@ -98,15 +109,23 @@ public class GameServer {
             System.out.println("Hai người chơi đã sẵn sàng! Tạo phòng game mới.");
             ClientTCPHandler player1 = waitingPlayers.remove(0);
             ClientTCPHandler player2 = waitingPlayers.remove(0);
-
             GameRoom newRoom = new GameRoom(player1, player2, this);
+            player1.setCurrentRoom(newRoom);
+            player2.setCurrentRoom(newRoom);
+            System.out.println("check room_player-is-ready: " + System.identityHashCode(newRoom));
             activeRooms.add(newRoom);
             new Thread(newRoom).start();
         }
     }
 
     public void removeClient(ClientTCPHandler handler) {
+        handler.cleanup();
         clientHandlers.remove(handler);
+        // Chỉ xóa phòng nếu không còn ai
+        if (clientHandlers.isEmpty()) {
+            activeRooms.remove(handler.getCurrentRoom());
+            System.out.println("Đã xóa phòng " + handler.getCurrentRoom().getRoomCode() + " vì không còn người chơi.");
+        }
         System.out.println("Một client đã ngắt kết nối. Còn lại: " + clientHandlers.size());
     }
 

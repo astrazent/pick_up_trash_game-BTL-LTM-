@@ -17,7 +17,7 @@ public class GameLoop extends AnimationTimer {
     private final Player player2;
     private final List<Trash> trashList;
     private final List<TrashBin> trashBins;
-
+    private boolean isPaused = false;
     private final double screenWidth;
     private final double screenHeight;
 
@@ -36,10 +36,13 @@ public class GameLoop extends AnimationTimer {
 
     @Override
     public void handle(long now) {
+        if (isPaused) return;
         handlePlayerMovement();
 
-        String posMessage = String.format("UPDATE_POS;%s;%f;%f", player1.getUsername(), player1.getX(), player1.getY());
-        Client.getInstance().sendUDPMessage(posMessage);
+        if (player2 != null) {
+            String posMessage = String.format("UPDATE_POS;%s;%f;%f", player1.getUsername(), player1.getX(), player1.getY());
+            Client.getInstance().sendUDPMessage(posMessage);
+        }
 
         player1.update();
         if (player2 != null) {
@@ -53,6 +56,18 @@ public class GameLoop extends AnimationTimer {
         }
 
         handlePlayerActions();
+    }
+    public void pauseGame() {
+        isPaused = true;
+        this.stop(); // dừng AnimationTimer
+    }
+
+    public void resumeGame() {
+        isPaused = false;
+        this.start(); // tiếp tục AnimationTimer
+    }
+    public boolean isPaused() {
+        return isPaused;
     }
 
     private void handlePlayerMovement() {
@@ -84,6 +99,8 @@ public class GameLoop extends AnimationTimer {
             for (TrashBin bin : trashBins) {
                 if (player1.checkCollision(bin)) {
                     String message = String.format("DROP_TRASH;%s;%s", player1.getUsername(), bin.getBinType().name());
+                    System.out.println(Client.getInstance().getUsername());
+                    System.out.println("check gameLoop: "+message);
                     Client.getInstance().sendMessage(message);
                     onBin = true;
                     break;

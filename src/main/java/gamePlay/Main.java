@@ -103,6 +103,15 @@ public class Main extends Application {
         if (playerCount == 1) {
             String myUsername = Client.getInstance().getUsername();
             GameScene gameScene = new GameScene(playerCount, myUsername, null);
+            // Gửi trạng thái sẵn sàng và SỐ LƯỢNG NGƯỜI CHƠI lên server
+            String username = Client.getInstance().getUsername();
+            if (username != null) {
+                // ĐỊNH DẠNG MỚI: READY;username;playerCount
+                Client.getInstance().sendMessage("READY;" + username + ";1");
+            } else {
+                // Xử lý lỗi nếu không có username (về lại màn login)
+                Main.getInstance().showLoginScene();
+            }
             this.activeGameScene = gameScene; // <-- LƯU LẠI THAM CHIẾU
             this.currentScene = gameScene.getScene();
             primaryStage.setScene(this.currentScene);
