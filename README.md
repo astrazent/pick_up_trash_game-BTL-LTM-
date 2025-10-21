@@ -61,7 +61,7 @@ Xây dựng trò chơi trực tuyến đối kháng 2 người chơi với chủ
 
 ### 2.1. Luật chơi
 **Mục tiêu:** Hứng và phân loại rác chính xác để ghi nhiều điểm nhất.  
-**Điều khiển:** ← / → / ↑ / ↓ để di chuyển, Enter để bỏ rác vào thùng.
+**Điều khiển:** ← / → / ↑ / ↓ để di chuyển, Space để bỏ rác vào thùng.
 
 #### ⚙️ Cơ chế tính điểm
 | Hành động | Điểm |
@@ -79,10 +79,10 @@ Xây dựng trò chơi trực tuyến đối kháng 2 người chơi với chủ
 
 #### 🏆 Xác định kết quả trận
 | Kết quả | Điều kiện | Điểm Ranking |
-|----------|------------|----------------|
-| Thắng | Điểm cao hơn | +1 |
-| Hòa | Điểm bằng nhau | +0.5 |
-| Thua | Điểm thấp hơn | -0.5 |
+|----------|------------|----------|
+| Thắng | Điểm cao hơn | +10      |
+| Hòa | Điểm bằng nhau | +5       |
+| Thua | Điểm thấp hơn | -5       |
 
 ---
 
