@@ -19,7 +19,8 @@ public class Main extends Application {
 
     // --- BIẾN QUAN TRỌNG CẦN THÊM ---
     private GameScene activeGameScene; // Sẽ lưu đối tượng GameScene đang chạy
-
+    private LeaderboardScene activeLeaderboardScene;
+    private HistoryScene activeHistoryScene; // <-- THÊM BIẾN NÀY
     public Main() { instance = this; }
     public static Main getInstance() { return instance; }
 
@@ -27,7 +28,13 @@ public class Main extends Application {
     public GameScene getActiveGameScene() {
         return activeGameScene;
     }
+    public LeaderboardScene getActiveLeaderboardScene() {
+        return activeLeaderboardScene;
+    }
 
+    public HistoryScene getActiveHistoryScene() {
+        return activeHistoryScene;
+    }
     @Override
     public void start(Stage stage) {
         // 1. Lưu lại cửa sổ chính để có thể sử dụng ở các nơi khác
@@ -96,6 +103,21 @@ public class Main extends Application {
         this.currentScene = gameScene.getScene();
         primaryStage.setScene(this.currentScene);
         gameScene.startGameLoop();
+    }
+
+    // Thêm phương thức này vào lớp Main.java
+    public void showLeaderboardScene() {
+        this.activeGameScene = null;
+        this.activeLeaderboardScene = new LeaderboardScene(); // Lưu lại thể hiện
+        this.currentScene = this.activeLeaderboardScene.getScene();
+        primaryStage.setScene(this.currentScene);
+    }
+
+    public void showHistoryScene() {
+        this.activeGameScene = null;
+        this.activeHistoryScene = new HistoryScene(); // Tạo và lưu lại thể hiện
+        this.currentScene = this.activeHistoryScene.getScene();
+        primaryStage.setScene(this.currentScene);
     }
 
     // Sửa hàm showGameScene (1 người chơi)

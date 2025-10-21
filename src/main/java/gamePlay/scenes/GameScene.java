@@ -9,12 +9,18 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,13 +36,18 @@ public class GameScene {
 
     // --- UI Elements ---
     private final Label scoreLabel1;
-    private final Label scoreLabel2;
+    private Label scoreLabel2; // <-- THAY ĐỔI: Có thể không được khởi tạo
     private final Label timerLabel;
-    private Button settingsButton; // <-- THÊM: Nút cài đặt
-    private VBox pauseMenu;      // <-- THÊM: Menu tạm dừng
-    private Button pauseResumeButton; // <-- THAY ĐỔI: Đổi tên để rõ ràng hơn
-    private Label pauseStatusLabel;   // <-- MỚI: Thêm label để hiển thị ai đã tạm dừng
-    private Label pauseChancesLabel; // Label mới để hiển thị số lượt tạm dừng còn lại
+    private Button settingsButton;
+    private VBox pauseMenu;
+    private Button pauseResumeButton;
+    private Label pauseStatusLabel;
+    private Label pauseChancesLabel;
+
+    // --- THÊM: Các yếu tố UI cho chế độ 1 người chơi ---
+    private HBox heartsBox; // Container cho các trái tim
+    private final List<ImageView> heartImageViews = new ArrayList<>();
+    private int playerLives = 3; // Số mạng ban đầu
 
     public GameScene(int playerCount, String p1Name, String p2Name) {
         System.out.println("check_game-scene: "+p1Name+" "+p2Name);
@@ -51,12 +62,6 @@ public class GameScene {
         scoreLabel1.setTranslateX(20);
         scoreLabel1.setTranslateY(10);
 
-        scoreLabel2 = new Label(p2Name != null ? p2Name + ": 0" : "");
-        scoreLabel2.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-        scoreLabel2.setTextFill(Color.WHITE);
-        scoreLabel2.setTranslateX(config.window.width - 150);
-        scoreLabel2.setTranslateY(10);
-
         timerLabel = new Label("02:00");
         timerLabel.setFont(Font.font("Arial", FontWeight.BOLD, 24));
         timerLabel.setTextFill(Color.WHITE);
@@ -68,9 +73,9 @@ public class GameScene {
         // --- Game Objects ---
         setupPlayers(playerCount, config, p1Name, p2Name);
         setupTrashBins(config);
-        setupSettingsAndPauseMenu(); // <-- THÊM: Gọi phương thức thiết lập menu
+        setupSettingsAndPauseMenu();
 
-        root.getChildren().addAll(scoreLabel1, timerLabel, settingsButton, pauseMenu); // Thêm các nút mới vào root
+        root.getChildren().addAll(scoreLabel1, timerLabel, settingsButton, pauseMenu);
 
 
         // --- Input and GameLoop ---
@@ -84,8 +89,8 @@ public class GameScene {
 
         double paddingRight = 50; // khoảng cách mong muốn từ lề phải
 
-        // Player 2
         if (playerCount == 2) {
+            // Player 2
             player2 = new Player(config.window.width / 2.0 + 50, config.window.height - config.player.height - 10, p2Name);
             if (player2.getView() instanceof Rectangle) {
                 ((Rectangle) player2.getView()).setFill(Color.LIGHTGREEN);
@@ -93,10 +98,77 @@ public class GameScene {
             root.getChildren().add(player2.getView());
 
             // Score label 2
+            scoreLabel2 = new Label(p2Name + ": 0");
+            scoreLabel2.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+            scoreLabel2.setTextFill(Color.WHITE);
             scoreLabel2.setTranslateX(config.window.width - 150 - paddingRight); // thêm padding
             root.getChildren().add(scoreLabel2);
+        } else {
+            // --- MỚI: Thiết lập hiển thị mạng cho chế độ 1 người chơi ---
+            setupLivesDisplay(config);
         }
     }
+
+    // --- MỚI: Phương thức thiết lập hiển thị mạng (trái tim) ---
+    private void setupLivesDisplay(GameConfig config) {
+        heartsBox = new HBox(5); // 5 là khoảng cách giữa các trái tim
+        heartsBox.setAlignment(Pos.CENTER);
+        double heartsBoxX = config.window.width - 215; // Vị trí tương tự scoreLabel2
+        double heartsBoxY = 10;
+        heartsBox.setLayoutX(heartsBoxX);
+        heartsBox.setLayoutY(heartsBoxY);
+
+        try {
+            // Thay "resources/heart.png" bằng đường dẫn chính xác đến file ảnh của bạn
+            Image heartImage = new Image(new FileInputStream("src/main/resources/images/heart.png"));
+            for (int i = 0; i < 3; i++) { // Luôn tạo 3 trái tim
+                ImageView heartView = new ImageView(heartImage);
+                heartView.setFitHeight(30);
+                heartView.setFitWidth(30);
+                heartImageViews.add(heartView);
+                heartsBox.getChildren().add(heartView);
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println("Không tìm thấy file ảnh trái tim! 'resources/heart.png'");
+            // Thay thế bằng text nếu không có ảnh
+            Label livesLabel = new Label("Mạng: " + playerLives);
+            livesLabel.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+            livesLabel.setTextFill(Color.RED);
+            heartsBox.getChildren().add(livesLabel);
+        }
+
+        root.getChildren().add(heartsBox);
+    }
+
+    // --- MỚI: Phương thức để xử lý khi người chơi mất một mạng ---
+    public void playerLosesLife(String playerName) {
+        if (!playerName.equals(player1.getUsername())) {
+            System.out.println("Lỗi: tên người chơi không hợp lệ (" + playerName + ")");
+            return;
+        }
+
+        if (playerLives > 0) {
+            playerLives--;
+            updateLivesDisplay();
+
+            if (playerLives <= 0) {
+                showGameOver(player1.getUsername());
+            }
+        }
+    }
+
+    // --- MỚI: Cập nhật giao diện hiển thị số mạng còn lại ---
+    private void updateLivesDisplay() {
+        // Ẩn trái tim dựa trên số mạng còn lại
+        for (int i = 0; i < heartImageViews.size(); i++) {
+            if (i < playerLives) {
+                heartImageViews.get(i).setVisible(true);
+            } else {
+                heartImageViews.get(i).setVisible(false);
+            }
+        }
+    }
+
 
     private void setupTrashBins(GameConfig config) {
         TrashType[] types = TrashType.values();
@@ -114,16 +186,13 @@ public class GameScene {
         }
     }
 
-    // <-- THÊM: Phương thức thiết lập nút cài đặt và menu tạm dừng
     private void setupSettingsAndPauseMenu() {
-        // --- Nút cài đặt ---
         settingsButton = new Button("Tùy chọn");
         settingsButton.setFocusTraversable(false);
         settingsButton.setFont(Font.font("Arial", 16));
         settingsButton.layoutXProperty().bind(root.widthProperty().subtract(settingsButton.widthProperty()).subtract(20));
         settingsButton.setLayoutY(10);
 
-        // --- Menu tạm dừng ---
         pauseMenu = new VBox(15);
         pauseMenu.setAlignment(Pos.CENTER);
         pauseMenu.setStyle("-fx-background-color: rgba(40, 40, 40, 0.85); -fx-background-radius: 10; -fx-padding: 25;");
@@ -132,44 +201,68 @@ public class GameScene {
         pauseStatusLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 16));
         pauseStatusLabel.setTextFill(Color.WHITE);
 
-        // --- Label mới: hiển thị số lượt dừng còn lại ---
-        pauseChancesLabel = new Label("Lượt tạm dừng còn lại: 3"); // giá trị mặc định
+        // Luôn khởi tạo pauseChancesLabel, nhưng tùy player2 để bật/tắt
+        pauseChancesLabel = new Label("Lượt tạm dừng còn lại: 3");
         pauseChancesLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
         pauseChancesLabel.setTextFill(Color.LIGHTGRAY);
+
+        if (player2 == null) {
+            pauseChancesLabel.setDisable(true);
+            pauseChancesLabel.setVisible(false); // ẩn hẳn khỏi giao diện
+        }
 
         pauseResumeButton = new Button("Tạm dừng");
         pauseResumeButton.setFocusTraversable(false);
         pauseResumeButton.setFont(Font.font("Arial", 20));
 
-        // Thêm label mới vào menu
         pauseMenu.getChildren().addAll(pauseStatusLabel, pauseChancesLabel, pauseResumeButton);
+
         pauseMenu.layoutXProperty().bind(root.widthProperty().subtract(pauseMenu.widthProperty()).divide(2));
         pauseMenu.layoutYProperty().bind(root.heightProperty().subtract(pauseMenu.heightProperty()).divide(2));
         pauseMenu.setVisible(false);
 
-        // --- Xử lý sự kiện ---
         settingsButton.setOnAction(e -> {
             boolean currentlyVisible = pauseMenu.isVisible();
-
             if (currentlyVisible) {
-                clearPauseMenu(); // Gọi hàm clear trước khi ẩn
+                clearPauseMenu();
             }
-
             pauseMenu.setVisible(!currentlyVisible);
         });
 
-        pauseResumeButton.setOnAction(e -> {
-            if (gameLoop.isPaused()) {
-                Client.getInstance().requestResumeGame();
-            } else {
-                Client.getInstance().requestPauseGame();
-            }
-        });
+        // Xử lý logic nút tạm dừng
+        if (player2 == null) {
+            pauseResumeButton.setOnAction(e -> {
+                if (gameLoop.isPaused()) {
+                    gameLoop.resumeGame();
+                    Client.getInstance().requestResumeGame();
+                    pauseResumeButton.setText("Tạm dừng");
+                    pauseStatusLabel.setText("");
+                    pauseMenu.setVisible(false);
+                    settingsButton.setDisable(false);
+                } else {
+                    gameLoop.pauseGame();
+                    Client.getInstance().requestPauseGame();
+                    pauseResumeButton.setText("Tiếp tục");
+                    pauseStatusLabel.setText("Trò chơi đã tạm dừng");
+                    settingsButton.setDisable(true);
+                }
+            });
+        } else {
+            pauseResumeButton.setOnAction(e -> {
+                if (gameLoop.isPaused()) {
+                    Client.getInstance().requestResumeGame();
+                } else {
+                    Client.getInstance().requestPauseGame();
+                }
+            });
+        }
     }
+
     private void clearPauseMenu() {
         pauseStatusLabel.setText("");
         pauseChancesLabel.setText("");
     }
+
     public void updatePauseChancesDisplay(int chancesLeft, boolean isPauser) {
         if (isPauser) {
             pauseChancesLabel.setVisible(true);
@@ -179,14 +272,13 @@ public class GameScene {
         }
     }
 
-    // <-- MỚI: Hàm được gọi bởi Client.java khi nhận được lệnh GAME_PAUSED
     public void handleGamePaused(String pauserUsername, String timeLeft, String chanceLeft) {
         String myUsername = Client.getInstance().getUsername();
 
         int time = Integer.parseInt(timeLeft);
         int chances = Integer.parseInt(chanceLeft);
         System.out.println("check_time_left: " + timeLeft);
-        // Nếu không còn lượt dừng → chỉ hiển thị thông báo, KHÔNG pause game
+
         if (time == -1) {
             if (pauserUsername.equals(myUsername)) {
                 pauseStatusLabel.setText("Bạn đã hết lượt tạm dừng!");
@@ -197,15 +289,13 @@ public class GameScene {
             return;
         }
 
-        // Nếu game chưa bị tạm dừng, thực hiện pause
         if (!gameLoop.isPaused()) {
-            gameLoop.pauseGame(); // Dừng logic game
+            gameLoop.pauseGame();
             pauseMenu.setVisible(true);
             pauseResumeButton.setText("Tiếp tục");
             settingsButton.setDisable(true);
         }
 
-        // Cập nhật text phù hợp với người pause
         if (pauserUsername.equals(myUsername)) {
             pauseStatusLabel.setText("Bạn đã tạm dừng trò chơi (" + timeLeft + " giây còn lại)");
             updatePauseChancesDisplay(chances, true);
@@ -215,14 +305,13 @@ public class GameScene {
         }
     }
 
-    // <-- MỚI: Hàm được gọi bởi Client.java khi nhận được lệnh GAME_RESUMED
     public void handleGameResumed() {
         if (gameLoop.isPaused()) {
-            gameLoop.resumeGame(); // Tiếp tục logic game
+            gameLoop.resumeGame();
             pauseResumeButton.setText("Tạm dừng");
             pauseStatusLabel.setText("");
-            pauseMenu.setVisible(false); // Ẩn menu đi
-            settingsButton.setDisable(false); // Kích hoạt lại nút cài đặt
+            pauseMenu.setVisible(false);
+            settingsButton.setDisable(false);
         }
     }
 
@@ -281,16 +370,33 @@ public class GameScene {
         gameOverLabel.setFont(Font.font("Arial", FontWeight.BOLD, 52));
         gameOverLabel.setTextFill(Color.ORANGE);
 
-        String resultMessage = winnerName.equalsIgnoreCase("TIE")
-                ? "Kết quả: Hòa!"
-                : "Người chiến thắng: " + winnerName;
+        String resultMessage;
+
+        // 1. Chế độ 1 người
+        if (player2 == null) {
+            if (playerLives <= 0) {
+                resultMessage = "Bạn đã hết mạng!";
+            } else {
+                resultMessage = "Trò chơi kết thúc!";
+            }
+        }
+        // 2. Chế độ 2 người
+        else {
+            if (winnerName.equalsIgnoreCase("TIE")) {
+                resultMessage = "Kết quả: Hòa!";
+            } else if (winnerName.equalsIgnoreCase(player1.getUsername())) {
+                resultMessage = "Chúc mừng! Bạn đã thắng 🎉";
+            } else {
+                resultMessage = "Bạn đã thua 😢";
+            }
+        }
 
         Label winnerLabel = new Label(resultMessage);
         winnerLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 28));
         winnerLabel.setTextFill(Color.WHITE);
 
         Button backToMenuButton = new Button("Trở về Menu");
-        backToMenuButton.setFocusTraversable(false); // <-- THÊM DÒNG NÀY
+        backToMenuButton.setFocusTraversable(false);
         backToMenuButton.setFont(Font.font("Arial", 20));
         backToMenuButton.setOnAction(e -> Main.getInstance().showMenuScene());
 
@@ -302,7 +408,6 @@ public class GameScene {
         root.getChildren().add(gameOverPane);
     }
 
-    // --- Các getters và setters cơ bản ---
     public Scene getScene() {
         return scene;
     }

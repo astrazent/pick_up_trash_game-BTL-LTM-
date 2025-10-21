@@ -8,6 +8,7 @@ import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import gamePlay.network.Client;
 
 public class MenuScene {
     private Scene scene;
@@ -36,11 +37,27 @@ public class MenuScene {
         Button leaderboardBtn = new Button("Leaderboard");
         leaderboardBtn.setPrefSize(150, 40);
         leaderboardBtn.setOnAction(e -> {
-            // Main.getInstance().showLeaderboardScene();
-            System.out.println("Leaderboard feature is not implemented yet.");
+            // 1. Gửi yêu cầu lấy dữ liệu bảng xếp hạng lên server
+            System.out.println("Gửi yêu cầu GET_LEADERBOARD tới server...");
+            Client.getInstance().sendMessage("GET_LEADERBOARD");
+
+            // 2. Chuyển sang màn hình bảng xếp hạng
+            // Màn hình này sẽ được cập nhật khi server gửi dữ liệu về
+            Main.getInstance().showLeaderboardScene();
         });
 
-        layout.getChildren().addAll(title, onePlayerBtn, twoPlayersBtn, leaderboardBtn);
+        Button historyBtn = new Button("Match History");
+        historyBtn.setPrefSize(150, 40);
+        historyBtn.setOnAction(e -> {
+            // 1. Gửi yêu cầu lấy lịch sử đấu lên server
+            System.out.println("Gửi yêu cầu GET_HISTORY tới server...");
+            Client.getInstance().sendMessage("GET_HISTORY");
+
+            // 2. Chuyển sang màn hình lịch sử
+            Main.getInstance().showHistoryScene();
+        });
+
+        layout.getChildren().addAll(title, onePlayerBtn, twoPlayersBtn, leaderboardBtn, historyBtn);
         scene = new Scene(layout, 400, 300);
     }
 

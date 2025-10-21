@@ -1,83 +1,77 @@
+DROP TABLE IF EXISTS `match_history`;
+DROP TABLE IF EXISTS `friends`;
+DROP TABLE IF EXISTS `users`;
+
 -- Cài đặt bộ ký tự và collation để hỗ trợ tiếng Việt
 SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 
+SET GLOBAL time_zone = '+07:00';
+SET time_zone = '+07:00';
+
 -- 1. TẠO DATABASE
--- Tạo database 'pick_up_trash' nếu nó chưa tồn tại.
 CREATE DATABASE IF NOT EXISTS pick_up_trash
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 
--- Sử dụng database vừa tạo
 USE pick_up_trash;
 
-
 -- 2. TẠO BẢNG 'users'
--- Bảng này lưu trữ thông tin tài khoản của người chơi.
-DROP TABLE IF EXISTS `users`;
-CREATE TABLE `users` (
-    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `username` VARCHAR(50) NOT NULL UNIQUE,
-    `password` VARCHAR(255) NOT NULL, -- QUAN TRỌNG: Trong thực tế, cột này nên lưu mật khẩu đã được băm (hashed).
-    `email` VARCHAR(100) NOT NULL UNIQUE,
-    `high_score` INT NOT NULL DEFAULT 0,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE users (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100),
+    high_score INT DEFAULT 0,
+    is_online TINYINT(1) NOT NULL DEFAULT 0, -- 0 = offline, 1 = online
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- Giải thích các cột trong bảng `users`:
--- `id`:         Mã định danh duy nhất cho mỗi người dùng (Khóa chính).
--- `username`:   Tên đăng nhập, không được trùng.
--- `password`:   Mật khẩu. Độ dài 255 để tương thích với các thuật toán băm mật khẩu hiện đại.
--- `email`:      Email người dùng, không được trùng.
--- `high_score`: Lưu điểm số cao nhất của người dùng, mặc định là 0.
--- `created_at`: Thời gian tài khoản được tạo.
-
-
--- 3. TẠO BẢNG 'leaderboard'
--- Bảng này lưu trữ kết quả của các trận đấu để làm bảng xếp hạng.
-DROP TABLE IF EXISTS `leaderboard`;
-CREATE TABLE `leaderboard` (
-    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `user_id` INT UNSIGNED NOT NULL,
-    `score` INT NOT NULL,
-    `game_date` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    -- Tạo khóa ngoại để liên kết với bảng 'users'
-    -- ON DELETE CASCADE: Nếu một user bị xóa, tất cả các điểm số của họ trong leaderboard cũng sẽ bị xóa.
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+-- 3. TẠO BẢNG 'match_history'
+CREATE TABLE `match_history` (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    opponent_id INT UNSIGNED NOT NULL,
+    score INT NOT NULL,
+    result ENUM('win', 'lose', 'draw') NOT NULL,
+    played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE CASCADE,
+    FOREIGN KEY (opponent_id) REFERENCES `users`(id) ON DELETE CASCADE,
+    INDEX idx_user_date (user_id, played_at)
 ) ENGINE=InnoDB;
 
--- Giải thích các cột trong bảng `leaderboard`:
--- `id`:        Mã định danh duy nhất cho mỗi lần ghi điểm.
--- `user_id`:   Liên kết tới người chơi trong bảng `users`.
--- `score`:     Điểm số đạt được trong trận đấu đó.
--- `game_date`: Thời gian trận đấu kết thúc.
+-- 4. TẠO BẢNG 'friends'
+CREATE TABLE `friends` (
+    user_id INT UNSIGNED NOT NULL,
+    friend_id INT UNSIGNED NOT NULL,
+    status ENUM('pending','accepted','blocked') NOT NULL DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, friend_id),
+    FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE CASCADE,
+    FOREIGN KEY (friend_id) REFERENCES `users`(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
-
--- 4. TẠO INDEXES (CHỈ MỤC)
--- Index giúp tăng tốc độ truy vấn dữ liệu trên các cột được sử dụng thường xuyên.
-CREATE INDEX `idx_leaderboard_score` ON `leaderboard`(`score` DESC);
-CREATE INDEX `idx_leaderboard_user_id` ON `leaderboard`(`user_id`);
-
-
--- 5. THÊM DỮ LIỆU MẪU (để kiểm tra)
--- Thêm một vài người dùng mẫu. Mật khẩu ở đây là '123' (chỉ dùng để test!).
+-- 5. THÊM DỮ LIỆU MẪU CHO users
 INSERT INTO `users` (`username`, `password`, `email`, `high_score`) VALUES
 ('player1', '123', 'player1@example.com', 150),
 ('player2', '123', 'pro@example.com', 250),
 ('noobMaster', '123', 'noob@example.com', 75);
 
--- Thêm một vài điểm số mẫu vào bảng xếp hạng.
--- Lưu ý: user_id tương ứng với id của các user vừa tạo (1, 2, 3).
-INSERT INTO `leaderboard` (`user_id`, `score`) VALUES
-(1, 150), -- player1
-(1, 120), -- player1
-(2, 250), -- gamerPro
-(2, 210), -- gamerPro
-(3, 75),  -- noobMaster
-(1, 90);  -- player1
+-- 6. THÊM DỮ LIỆU MẪU CHO match_history
+INSERT INTO `match_history` (`user_id`, `opponent_id`, `score`, `result`) VALUES
+(1, 2, 150, 'win'),
+(1, 3, 120, 'lose'),
+(2, 1, 250, 'win'),
+(3, 1, 75, 'lose');
+
+-- 7. THÊM DỮ LIỆU MẪU CHO friends
+INSERT INTO `friends` (`user_id`, `friend_id`, `status`) VALUES
+(1, 2, 'accepted'),
+(1, 3, 'pending'),
+(2, 3, 'accepted');
 
 -- Kết thúc script
 COMMIT;
 
-SELECT 'Cơ sở dữ liệu và các bảng đã được tạo thành công với dữ liệu mẫu.' AS 'Status';
+SELECT 'Cơ sở dữ liệu và các bảng đã được tạo thành công với dữ liệu mẫu, bao gồm match_history và friends, kiểu dữ liệu chuẩn.' AS 'Status';

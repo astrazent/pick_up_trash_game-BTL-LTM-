@@ -1,6 +1,8 @@
 package gamePlay.network;
 
 import gamePlay.game.TrashType;
+import gamePlay.utils.DatabaseConnector;
+import gamePlay.utils.DatabaseResponse;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,10 +32,11 @@ public class GameRoom implements Runnable {
     private volatile boolean isRunning = false; // MỚI: Sử dụng volatile để đảm bảo an toàn luồng
     private volatile boolean isPaused = false;  // MỚI: Biến trạng thái để kiểm soát việc tạm dừng game
 
-    private final int gameDurationSeconds = 120;
+    private final int gameDurationSeconds = 10;
     private final long trashSpawnIntervalMs = 5000;
     private int pauseChancesPlayer1 = 3; // Số lượt dừng còn lại player 1
     private int pauseChancesPlayer2 = 3; // Số lượt dừng còn lại player 2
+    private int alive1P = 3; //tổng số cơ hội phân loại sai tối đa
 
     private static final AtomicInteger trashIdCounter = new AtomicInteger(0);
 
@@ -43,12 +46,13 @@ public class GameRoom implements Runnable {
     public GameRoom(ClientTCPHandler p1, ClientTCPHandler p2, GameServer server) {
         this.player1 = p1;
         this.player2 = p2;
-        System.out.println("h1: " + System.identityHashCode(p1) + " h2: "+ System.identityHashCode(p2));
+        System.out.println("h1: " + System.identityHashCode(p1) + " h2: " + System.identityHashCode(p2));
         this.server = server;
         playerScores.put(p1.getUsername(), 0);
         playerScores.put(p2.getUsername(), 0);
         this.roomCode = "2P" + generateRoomCode();
     }
+
     public GameRoom(ClientTCPHandler p1, GameServer server) {
         this.player1 = p1;
         this.player2 = null; // Quan trọng: Đánh dấu đây là phòng 1 người chơi
@@ -56,6 +60,7 @@ public class GameRoom implements Runnable {
         playerScores.put(p1.getUsername(), 0);
         this.roomCode = "1P" + generateRoomCode();
     }
+
     // Hàm tạo mã phòng ngẫu nhiên 6 ký tự (chữ + số in hoa)
     private String generateRoomCode() {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -104,9 +109,58 @@ public class GameRoom implements Runnable {
                     Thread.sleep(100);
                 }
             }
+            // Lấy điểm hiện tại của hai người chơi
+            int score1 = playerScores.getOrDefault(player1.getUsername(), 0);
+            int score2 = 0;
 
-            System.out.println("SERVER: [Room " + player1.getUsername() + "] Game Over.");
-            broadcast("GAME_OVER");
+            if (player2 != null) {
+                score2 = playerScores.getOrDefault(player2.getUsername(), 0);
+            } else {
+                // Nếu không có player2, 1P thắng mặc định
+                System.out.println("SERVER: [Player: " + player1.getUsername() + "] complete 1P match");
+
+                // Cập nhật điểm player1 (thắng)
+                DatabaseResponse<Void> res = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player1.getUsername(), "win");
+                System.out.println(res.getMessage());
+
+                broadcast("GAME_OVER;" + player1.getUsername());
+                return;
+            }
+
+            String winner;
+            if (score1 > score2) {
+                winner = player1.getUsername();
+
+                // Cập nhật điểm
+                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player1.getUsername(), "win");
+                DatabaseResponse<Void> res2 = DatabaseConnector.updateScoreAfterMatch(player2.getUsername(), player1.getUsername(), "lose");
+                System.out.println(res1.getMessage());
+                System.out.println(res2.getMessage());
+
+            } else if (score2 > score1) {
+                winner = player2.getUsername();
+
+                // Cập nhật điểm
+                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player1.getUsername(), "lose");
+                DatabaseResponse<Void> res2 = DatabaseConnector.updateScoreAfterMatch(player2.getUsername(), player1.getUsername(), "win");
+                System.out.println(res1.getMessage());
+                System.out.println(res2.getMessage());
+
+            } else {
+                // Hòa
+                broadcast("GAME_OVER;DRAW;" + score1);
+
+                // Cập nhật điểm cho cả hai người chơi
+                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player1.getUsername(), "draw");
+                DatabaseResponse<Void> res2 = DatabaseConnector.updateScoreAfterMatch(player2.getUsername(), player1.getUsername(), "draw");
+                System.out.println(res1.getMessage());
+                System.out.println(res2.getMessage());
+
+                return;
+            }
+
+            // Gửi kết quả cho mọi client
+            broadcast("GAME_OVER;" + winner + ";WIN;" + score1 + ";" + score2);
 
         } catch (InterruptedException e) {
             System.out.println("GameRoom bị gián đoạn.");
@@ -152,8 +206,13 @@ public class GameRoom implements Runnable {
 
         // Xác định người tạm dừng
         if (player1 != null && player1.getUsername().equals(pauserUsername)) {
-            pauseChancesPlayer1--;
-            chanceLeft = pauseChancesPlayer1; // gán giá trị
+            if (player2 == null) {
+                chanceLeft = 10000;
+                System.out.println("SERVER: Chế độ 1 người chơi — không trừ lượt tạm dừng.");
+            } else {
+                pauseChancesPlayer1--;
+                chanceLeft = pauseChancesPlayer1; // gán giá trị
+            }
         } else if (player2 != null && player2.getUsername().equals(pauserUsername)) {
             pauseChancesPlayer2--;
             chanceLeft = pauseChancesPlayer2;
@@ -170,6 +229,7 @@ public class GameRoom implements Runnable {
 
         if (!isPaused) {
             isPaused = true;
+            if (player2 == null) return;
             final int finalChanceLeft = chanceLeft; // <- copy sang biến final để dùng trong lambda
 
             System.out.println("SERVER: Game đã được tạm dừng bởi " + pauserUsername);
@@ -204,7 +264,7 @@ public class GameRoom implements Runnable {
     private void handleResumeGame(String resumerUsername) {
         if (isPaused) {
             isPaused = false;
-
+            if (player2 == null) return;
             // Ngắt thread đếm ngược nếu còn chạy
             if (pauseThread != null && pauseThread.isAlive()) {
                 pauseThread.interrupt();
@@ -244,7 +304,21 @@ public class GameRoom implements Runnable {
             final TrashType trashType = heldTrash.type; // <- thêm dòng này
 
             // Cập nhật điểm
-            playerScores.compute(username, (k, v) -> (v == null ? 0 : v) + (trashType == binType ? 1 : -1));
+            playerScores.compute(username, (k, v) -> {
+                int currentScore = (v == null ? 0 : v);
+                int newScore;
+
+                if (trashType == binType) {
+                    newScore = currentScore + 10;
+                } else {
+                    broadcast(String.format("WRONG_CLASSIFY;%s", username));
+                    alive1P--;
+                    newScore = currentScore - 5;
+                }
+
+                // Không cho điểm âm
+                return Math.max(0, newScore);
+            });
 
             // Lấy điểm hiện tại
             int p1Score = playerScores.getOrDefault(player1.getUsername(), 0);
@@ -309,6 +383,11 @@ public class GameRoom implements Runnable {
         }
     }
 
-    public ClientTCPHandler getPlayer1() { return player1; }
-    public ClientTCPHandler getPlayer2() { return player2; }
+    public ClientTCPHandler getPlayer1() {
+        return player1;
+    }
+
+    public ClientTCPHandler getPlayer2() {
+        return player2;
+    }
 }

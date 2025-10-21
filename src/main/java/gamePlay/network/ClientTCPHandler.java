@@ -2,7 +2,8 @@ package gamePlay.network;
 
 // Import các lớp cần thiết
 import com.google.gson.Gson;
-import gamePlay.data.LeaderboardEntry;
+import gamePlay.data.MatchHistory;
+import gamePlay.data.UserProfile;
 import gamePlay.data.UserProfileServer;
 import gamePlay.utils.DatabaseConnector;
 import gamePlay.utils.DatabaseResponse;
@@ -156,7 +157,7 @@ public class ClientTCPHandler implements Runnable {
 
             // Bạn có thể thêm các command khác ở đây, ví dụ: lấy bảng xếp hạng
              case "GET_LEADERBOARD":
-                 DatabaseResponse<List<LeaderboardEntry>> leaderboardResponse = DatabaseConnector.getLeaderboard();
+                 DatabaseResponse<List<UserProfile>> leaderboardResponse = DatabaseConnector.getLeaderboard();
                  if (leaderboardResponse.isSuccess()) {
                      Gson gson = new Gson();
                      String leaderboardJson = gson.toJson(leaderboardResponse.getData());
@@ -165,6 +166,18 @@ public class ClientTCPHandler implements Runnable {
                      sendMessage("LEADERBOARD_FAILED;" + leaderboardResponse.getMessage());
                  }
                  break;
+            case "GET_HISTORY":
+                // Gọi phương thức từ DatabaseConnector với ID của người dùng hiện tại
+                DatabaseResponse<List<MatchHistory>> historyResponse = DatabaseConnector.getMatchHistory(username);
+
+                if (historyResponse.isSuccess()) {
+                    Gson gson = new Gson();
+                    String historyJson = gson.toJson(historyResponse.getData());
+                    sendMessage("HISTORY_DATA;" + historyJson);
+                } else {
+                    sendMessage("HISTORY_FAILED;" + historyResponse.getMessage());
+                }
+                break;
         }
     }
 }

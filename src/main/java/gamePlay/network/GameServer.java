@@ -120,12 +120,12 @@ public class GameServer {
 
     public void removeClient(ClientTCPHandler handler) {
         handler.cleanup();
-        clientHandlers.remove(handler);
         // Chỉ xóa phòng nếu không còn ai
         if (clientHandlers.isEmpty()) {
-            activeRooms.remove(handler.getCurrentRoom());
             System.out.println("Đã xóa phòng " + handler.getCurrentRoom().getRoomCode() + " vì không còn người chơi.");
+            activeRooms.remove(handler.getCurrentRoom());
         }
+        clientHandlers.remove(handler);
         System.out.println("Một client đã ngắt kết nối. Còn lại: " + clientHandlers.size());
     }
 

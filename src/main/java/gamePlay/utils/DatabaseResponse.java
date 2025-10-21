@@ -1,4 +1,3 @@
-// Đặt file này trong package gamePlay.utils hoặc một package data mới
 package gamePlay.utils;
 
 public class DatabaseResponse<T> {
@@ -29,24 +28,28 @@ public class DatabaseResponse<T> {
 
     // --- Static Factory Methods ---
 
-    /**
-     * Tạo một response thành công.
-     */
+    /** ✅ Thành công (trả về data, không cần message) */
+    public static <T> DatabaseResponse<T> success(T data) {
+        return new DatabaseResponse<>(true, null, data);
+    }
+
+    /** Thành công (trả về data và message) */
     public static <T> DatabaseResponse<T> success(T data, String message) {
         return new DatabaseResponse<>(true, message, data);
     }
 
-    /**
-     * Tạo một response thành công không có dữ liệu trả về.
-     */
+    /** Thành công (không có data, chỉ có message) */
     public static <T> DatabaseResponse<T> success(String message) {
         return new DatabaseResponse<>(true, message, null);
     }
 
-    /**
-     * Tạo một response thất bại.
-     */
-    public static <T> DatabaseResponse<T> error(String message) {
+    /** ✅ Thất bại (trả về message, data = null) */
+    public static <T> DatabaseResponse<T> failure(String message) {
         return new DatabaseResponse<>(false, message, null);
+    }
+
+    /** Giữ lại alias cho error nếu bạn muốn */
+    public static <T> DatabaseResponse<T> error(String message) {
+        return failure(message);
     }
 }

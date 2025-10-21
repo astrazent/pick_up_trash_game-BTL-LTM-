@@ -2,13 +2,17 @@ package gamePlay.network;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import gamePlay.Main;
 import gamePlay.config.NetworkConfig;
+import gamePlay.data.MatchHistory;
 import gamePlay.data.UserProfile;
 import gamePlay.game.Player;
 import gamePlay.game.Trash;
 import gamePlay.game.TrashType;
 import gamePlay.scenes.GameScene;
+import gamePlay.scenes.HistoryScene;
+import gamePlay.scenes.LeaderboardScene;
 import javafx.application.Platform;
 
 import java.io.BufferedReader;
@@ -17,6 +21,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.*;
 import java.util.Arrays;
+import java.util.List;
+import java.lang.reflect.Type;
 
 public class Client {
     private static Client instance;
@@ -232,6 +238,13 @@ public class Client {
                     }
                 }
                 break;
+            case "WRONG_CLASSIFY":
+                if (game != null && messageParts.length == 2) {
+                    String playerName = messageParts[1];
+                    game.playerLosesLife(playerName);
+                    System.out.println(playerName + " đã phân loại sai và bị trừ điểm!");
+                }
+                break;
 
             case "TRASH_RESET": // Server: TRASH_RESET;id;newX;newY;newType
                 if (game != null && messageParts.length == 5) {
@@ -263,11 +276,102 @@ public class Client {
                 }
                 break;
 
-            case "GAME_OVER": // Server: GAME_OVER;winnerName;message
-                if (game != null && messageParts.length >= 2) {
-                    String winner = messageParts[1];
-                    game.showGameOver(winner);
+            case "GAME_OVER":
+                if (game != null) {
+                    // GAME_OVER có nhiều dạng, nên cần phân tích theo số lượng phần tử
+                    if (messageParts.length == 2) {
+                        // Trường hợp 1P: GAME_OVER;player1
+                        String winner = messageParts[1];
+                        game.showGameOver(winner);
+
+                    } else if (messageParts.length == 3 && "DRAW".equals(messageParts[1])) {
+                        // Trường hợp hòa: GAME_OVER;DRAW;score1
+                        game.showGameOver("TIE");
+
+                    } else if (messageParts.length >= 5) {
+                        // Trường hợp 2P: GAME_OVER;username;WIN;score1;score2
+                        String playerName = messageParts[1];
+                        String resultType = messageParts[2];
+                        if ("WIN".equalsIgnoreCase(resultType)) {
+                            game.showGameOver(playerName);
+                        }
+                    } else {
+                        System.out.println("CLIENT: Định dạng GAME_OVER không hợp lệ!");
+                    }
                 }
+                break;
+            case "LEADERBOARD_DATA":
+                if (messageParts.length < 2) {
+                    System.err.println("Dữ liệu leaderboard không hợp lệ: thiếu nội dung JSON.");
+                    return;
+                }
+                try {
+                    String jsonData = messageParts[1];
+                    Gson gson = new Gson();
+
+                    // 1. Định nghĩa kiểu dữ liệu là một List<UserProfile>
+                    Type userProfileListType = new TypeToken<List<UserProfile>>() {}.getType();
+
+                    // 2. Phân tích chuỗi JSON thành một danh sách các UserProfile
+                    List<UserProfile> leaderboardData = gson.fromJson(jsonData, userProfileListType);
+
+                    // 3. Cập nhật giao diện trên luồng chính của JavaFX
+                    Platform.runLater(() -> {
+                        // Lấy ra LeaderboardScene đang hoạt động (cần có getter trong Main.java)
+                        LeaderboardScene scene = Main.getInstance().getActiveLeaderboardScene();
+                        if (scene != null) {
+                            // Gọi phương thức để cập nhật bảng với dữ liệu mới
+                            scene.updateLeaderboard(leaderboardData);
+                        } else {
+                            System.err.println("Không tìm thấy LeaderboardScene đang hoạt động để cập nhật.");
+                        }
+                    });
+
+                } catch (JsonSyntaxException e) {
+                    // Xử lý lỗi nếu server gửi về một chuỗi JSON không đúng định dạng
+                    System.err.println("Lỗi phân tích JSON từ server: " + e.getMessage());
+                    // Có thể hiển thị thông báo lỗi trên UI nếu cần
+                }
+                break;
+
+            case "LEADERBOARD_FAILED":
+                // Xử lý khi server không lấy được dữ liệu leaderboard
+                System.err.println("Server không thể lấy dữ liệu leaderboard: " + messageParts[1]);
+                // Có thể hiển thị thông báo lỗi trên UI
+                break;
+            case "HISTORY_DATA":
+                if (messageParts.length < 2) {
+                    System.err.println("Dữ liệu lịch sử đấu không hợp lệ.");
+                    return;
+                }
+                try {
+                    String jsonData = messageParts[1];
+                    Gson gson = new Gson();
+
+                    // Định nghĩa kiểu dữ liệu là một List<MatchHistory>
+                    Type matchHistoryListType = new TypeToken<List<MatchHistory>>() {}.getType();
+
+                    // Phân tích JSON thành danh sách đối tượng
+                    List<MatchHistory> historyData = gson.fromJson(jsonData, matchHistoryListType);
+
+                    // Cập nhật giao diện trên luồng chính của JavaFX
+                    Platform.runLater(() -> {
+                        HistoryScene scene = Main.getInstance().getActiveHistoryScene();
+                        if (scene != null) {
+                            scene.updateHistory(historyData);
+                        } else {
+                            System.err.println("Không tìm thấy HistoryScene đang hoạt động để cập nhật.");
+                        }
+                    });
+
+                } catch (JsonSyntaxException e) {
+                    System.err.println("Lỗi phân tích JSON lịch sử đấu từ server: " + e.getMessage());
+                }
+                break;
+
+            case "HISTORY_FAILED":
+                System.err.println("Server không thể lấy dữ liệu lịch sử đấu: " + messageParts[1]);
+                // Có thể hiển thị thông báo lỗi trên UI
                 break;
         }
     }
