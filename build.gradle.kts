@@ -30,7 +30,7 @@ javafx {
 }
 
 application {
-    mainClass.set("gamePlay.Main")
+    mainClass.set("client.Main")
     // Dùng dòng dưới nếu bạn dùng JFoenix
      applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
 }
