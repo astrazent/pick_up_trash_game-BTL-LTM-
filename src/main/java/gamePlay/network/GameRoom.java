@@ -32,7 +32,7 @@ public class GameRoom implements Runnable {
     private volatile boolean isRunning = false; // MỚI: Sử dụng volatile để đảm bảo an toàn luồng
     private volatile boolean isPaused = false;  // MỚI: Biến trạng thái để kiểm soát việc tạm dừng game
 
-    private final int gameDurationSeconds = 10;
+    private final int gameDurationSeconds = 120;
     private final long trashSpawnIntervalMs = 5000;
     private int pauseChancesPlayer1 = 3; // Số lượt dừng còn lại player 1
     private int pauseChancesPlayer2 = 3; // Số lượt dừng còn lại player 2
