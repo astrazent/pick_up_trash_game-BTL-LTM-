@@ -59,13 +59,6 @@ INSERT INTO `users` (`username`, `password`, `email`, `high_score`) VALUES
 ('player2', '123', 'pro@example.com', 250),
 ('noobMaster', '123', 'noob@example.com', 75);
 
--- 6. THÊM DỮ LIỆU MẪU CHO match_history
-INSERT INTO `match_history` (`user_id`, `opponent_id`, `score`, `result`) VALUES
-(1, 2, 150, 'win'),
-(1, 3, 120, 'lose'),
-(2, 1, 250, 'win'),
-(3, 1, 75, 'lose');
-
 -- 7. THÊM DỮ LIỆU MẪU CHO friends
 INSERT INTO `friends` (`user_id`, `friend_id`, `status`) VALUES
 (1, 2, 'accepted'),

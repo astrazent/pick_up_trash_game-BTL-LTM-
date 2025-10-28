@@ -86,9 +86,13 @@ public class GameRoom implements Runnable {
             if (player2 != null) {
                 System.out.println("SERVER: GameRoom bắt đầu giữa " + player1.getUsername() + " và " + player2.getUsername());
                 broadcast("START_GAME;" + player1.getUsername() + ";" + player2.getUsername());
+                DatabaseResponse<Void> res = DatabaseConnector.startMatch(player1.getUsername(), player2.getUsername());
+                System.out.println(res.getMessage());
             } else {
                 System.out.println("SERVER: GameRoom (1P) bắt đầu cho " + player1.getUsername());
                 broadcast("START_GAME;" + player1.getUsername());
+                DatabaseResponse<Void> res = DatabaseConnector.startMatch(player1.getUsername(), player1.getUsername());
+                System.out.println(res.getMessage());
             }
 
             int secondsLeft = gameDurationSeconds;
