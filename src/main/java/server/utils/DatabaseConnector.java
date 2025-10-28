@@ -170,48 +170,80 @@ public class DatabaseConnector {
      * - end_date, score, result để NULL cho đến khi kết thúc.
      */
     public static DatabaseResponse<Void> startMatch(String username, String opponentName) {
+        System.out.println("=== [DEBUG] GỌI startMatch() ===");
+        System.out.println("  → username: " + username);
+        System.out.println("  → opponentName: " + opponentName);
+
         String findUserSql = "SELECT id FROM users WHERE username = ?";
         String insertHistorySql = "INSERT INTO match_history (user_id, opponent_id, start_date) VALUES (?, ?, NOW())";
 
         try (Connection conn = getConnection()) {
-            int userId, opponentId;
+            System.out.println("  → Đã kết nối DB thành công.");
+            conn.setAutoCommit(false);
 
-            // Lấy user_id
+            int userId = -1;
+            int opponentId = -1;
+
+            // 🔹 Lấy user_id của người chơi
+            System.out.println("  → Đang tìm user_id cho: " + username);
             try (PreparedStatement pstmt = conn.prepareStatement(findUserSql)) {
                 pstmt.setString(1, username);
                 ResultSet rs = pstmt.executeQuery();
                 if (rs.next()) {
                     userId = rs.getInt("id");
+                    System.out.println("    ✔ user_id = " + userId);
                 } else {
+                    System.err.println("    ❌ Không tìm thấy người chơi: " + username);
+                    conn.rollback();
                     return DatabaseResponse.error("Không tìm thấy người chơi: " + username);
                 }
             }
 
-            // Lấy opponent_id
-            try (PreparedStatement pstmt = conn.prepareStatement(findUserSql)) {
-                pstmt.setString(1, opponentName);
-                ResultSet rs = pstmt.executeQuery();
-                if (rs.next()) {
-                    opponentId = rs.getInt("id");
-                } else {
-                    return DatabaseResponse.error("Không tìm thấy đối thủ: " + opponentName);
+            // 🔹 Lấy opponent_id của đối thủ
+            if (username.equals(opponentName)) {
+                System.out.println("  → Trận 1P (đấu với chính mình). opponentId = userId");
+                opponentId = userId;
+            } else {
+                System.out.println("  → Đang tìm opponent_id cho: " + opponentName);
+                try (PreparedStatement pstmt = conn.prepareStatement(findUserSql)) {
+                    pstmt.setString(1, opponentName);
+                    ResultSet rs = pstmt.executeQuery();
+                    if (rs.next()) {
+                        opponentId = rs.getInt("id");
+                        System.out.println("    ✔ opponent_id = " + opponentId);
+                    } else {
+                        System.err.println("    ❌ Không tìm thấy đối thủ: " + opponentName);
+                        conn.rollback();
+                        return DatabaseResponse.error("Không tìm thấy đối thủ: " + opponentName);
+                    }
                 }
             }
 
-            // Thêm bản ghi trận đấu
+            // 🔹 Thêm bản ghi vào match_history
+            System.out.println("  → Chuẩn bị chèn vào match_history:");
+            System.out.println("     user_id = " + userId + ", opponent_id = " + opponentId);
             try (PreparedStatement pstmt = conn.prepareStatement(insertHistorySql)) {
                 pstmt.setInt(1, userId);
                 pstmt.setInt(2, opponentId);
-                pstmt.executeUpdate();
+                int rows = pstmt.executeUpdate();
+                System.out.println("    ✔ Đã thêm " + rows + " dòng vào match_history.");
             }
 
-            return DatabaseResponse.success("Bắt đầu trận đấu thành công.");
+            // 🔹 Commit giao dịch
+            conn.commit();
+            System.out.println("  → Đã commit giao dịch thành công!");
+            System.out.println("=== [DEBUG] KẾT THÚC startMatch() ===\n");
+
+            return DatabaseResponse.success("✅ Bắt đầu trận đấu thành công — đã lưu vào DB.");
 
         } catch (SQLException e) {
+            System.err.println("❌ Lỗi SQL trong startMatch(): " + e.getMessage());
             e.printStackTrace();
-            return DatabaseResponse.error("Lỗi cơ sở dữ liệu khi bắt đầu trận đấu: " + e.getMessage());
+            return DatabaseResponse.error("❌ Lỗi cơ sở dữ liệu khi bắt đầu trận đấu: " + e.getMessage());
         }
     }
+
+
 
 
     /**
