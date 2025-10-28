@@ -1,8 +1,17 @@
 package client.scenes;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
+
 import client.Main;
 import client.config.GameConfig;
-import client.game.*;
+import client.game.GameLoop;
+import client.game.Player;
+import client.game.Trash;
+import client.game.TrashBin;
+import client.game.TrashType;
 import client.input.InputHandler;
 import client.network.Client;
 import javafx.geometry.Pos;
@@ -18,11 +27,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class GameScene {
     private final Scene scene;
@@ -41,6 +45,7 @@ public class GameScene {
     private Button settingsButton;
     private VBox pauseMenu;
     private Button pauseResumeButton;
+    private Button surrenderButton; // Nút thoát (đầu hàng)
     private Label pauseStatusLabel;
     private Label pauseChancesLabel;
 
@@ -147,14 +152,18 @@ public class GameScene {
             return;
         }
 
-        if (playerLives > 0) {
-            playerLives--;
-            updateLivesDisplay();
+        // CHỈ xử lý mất mạng trong mode 1 player
+        if (player2 == null) {
+            if (playerLives > 0) {
+                playerLives--;
+                updateLivesDisplay();
 
-            if (playerLives <= 0) {
-                showGameOver(player1.getUsername());
+                if (playerLives <= 0) {
+                    showGameOver(player1.getUsername());
+                }
             }
         }
+        // Trong mode 2 player, không xử lý gì cả (chỉ trừ điểm đã được xử lý ở server)
     }
 
     // --- MỚI: Cập nhật giao diện hiển thị số mạng còn lại ---
@@ -215,7 +224,24 @@ public class GameScene {
         pauseResumeButton.setFocusTraversable(false);
         pauseResumeButton.setFont(Font.font("Arial", 20));
 
-        pauseMenu.getChildren().addAll(pauseStatusLabel, pauseChancesLabel, pauseResumeButton);
+        // Thêm nút thoát (đầu hàng)
+        surrenderButton = new Button("Thoát");
+        surrenderButton.setFocusTraversable(false);
+        surrenderButton.setFont(Font.font("Arial", 20));
+        surrenderButton.setStyle("-fx-background-color: #d9534f; -fx-text-fill: white;");
+        surrenderButton.setOnAction(e -> {
+            // Xác nhận người chơi có chắc chắn muốn thoát không
+            if (player2 != null) {
+                // Chế độ 2 người chơi: thoát = thua
+                Client.getInstance().requestSurrender();
+            } else {
+                // Chế độ 1 người chơi: chỉ đơn giản thoát về menu
+                gameLoop.stop();
+                Main.getInstance().showMenuScene();
+            }
+        });
+
+        pauseMenu.getChildren().addAll(pauseStatusLabel, pauseChancesLabel, pauseResumeButton, surrenderButton);
 
         pauseMenu.layoutXProperty().bind(root.widthProperty().subtract(pauseMenu.widthProperty()).divide(2));
         pauseMenu.layoutYProperty().bind(root.heightProperty().subtract(pauseMenu.heightProperty()).divide(2));

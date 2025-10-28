@@ -159,6 +159,7 @@ public class GameServer {
 
     public static void main(String[] args) {
         NetworkConfig config = ResourceLoader.loadNetworkConfig();
+
         if (config != null) {
             GameServer server = new GameServer(config.server.tcp_port, config.server.udp_port);
             server.start();
