@@ -38,6 +38,7 @@ public class HistoryScene {
                     myUsername,
                     match.getOpponentName(),
                     match.getResult(),
+                    match.getStartDate(),
                     match.getGameDate()
             ));
         }
@@ -55,7 +56,7 @@ public class HistoryScene {
 
         // Tạo bảng
         table = new TableView<>();
-        table.setPrefWidth(450); // Tăng chiều rộng để vừa 4 cột
+        table.setPrefWidth(560); // Tăng chiều rộng để vừa 4 cột
 
         // Tạo các cột
         TableColumn<MatchHistoryEntry, String> yourNameCol = new TableColumn<>("Your Name");
@@ -70,17 +71,21 @@ public class HistoryScene {
         resultCol.setCellValueFactory(new PropertyValueFactory<>("result"));
         resultCol.setPrefWidth(80);
 
-        TableColumn<MatchHistoryEntry, String> dateCol = new TableColumn<>("Date");
+        TableColumn<MatchHistoryEntry, String> startCol = new TableColumn<>("StartDate");
+        startCol.setCellValueFactory(new PropertyValueFactory<>("endDate"));
+        startCol.setPrefWidth(120);
+
+        TableColumn<MatchHistoryEntry, String> dateCol = new TableColumn<>("EndDate");
         dateCol.setCellValueFactory(new PropertyValueFactory<>("datePlayed"));
         dateCol.setPrefWidth(120);
 
 
-        table.getColumns().addAll(yourNameCol, opponentCol, resultCol, dateCol);
+        table.getColumns().addAll(yourNameCol, opponentCol, resultCol, startCol, dateCol);
 
         // Dữ liệu mẫu để hiển thị lúc đầu
         ObservableList<MatchHistoryEntry> sampleData = FXCollections.observableArrayList(
-                new MatchHistoryEntry("MyPlayer", "OpponentA", "WIN", "2025-10-20"),
-                new MatchHistoryEntry("MyPlayer", "OpponentB", "LOSS", "2025-10-19")
+                new MatchHistoryEntry("MyPlayer", "OpponentA", "WIN", "2025-10-20", "2025-10-20 10:15"),
+                new MatchHistoryEntry("MyPlayer", "OpponentB", "LOSS", "2025-10-19", "2025-10-19 09:42")
         );
         table.setItems(sampleData);
 
@@ -92,7 +97,7 @@ public class HistoryScene {
         });
 
         layout.getChildren().addAll(title, table, backBtn);
-        scene = new Scene(layout, 500, 400); // Tăng kích thước cửa sổ
+        scene = new Scene(layout, 600, 400); // Tăng kích thước cửa sổ
     }
 
     public Scene getScene() {
@@ -105,11 +110,13 @@ public class HistoryScene {
         private final String opponentName;
         private final String result;
         private final String datePlayed;
+        private final String startDate;
 
-        public MatchHistoryEntry(String yourName, String opponentName, String result, String datePlayed) {
+        public MatchHistoryEntry(String yourName, String opponentName, String result,String startDate, String datePlayed) {
             this.yourName = yourName;
             this.opponentName = opponentName;
             this.result = result;
+            this.startDate = startDate;
             this.datePlayed = datePlayed;
         }
 
@@ -118,5 +125,6 @@ public class HistoryScene {
         public String getOpponentName() { return opponentName; }
         public String getResult() { return result; }
         public String getDatePlayed() { return datePlayed; }
+        public String getStartDate() { return startDate; }
     }
 }

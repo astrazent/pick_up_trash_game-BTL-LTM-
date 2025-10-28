@@ -35,7 +35,8 @@ CREATE TABLE `match_history` (
     opponent_id INT UNSIGNED NOT NULL,
     score INT NOT NULL,
     result ENUM('win', 'lose', 'draw') NOT NULL,
-    played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    start_date DATETIME AFTER,
+    end_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE CASCADE,
     FOREIGN KEY (opponent_id) REFERENCES `users`(id) ON DELETE CASCADE,
     INDEX idx_user_date (user_id, played_at)

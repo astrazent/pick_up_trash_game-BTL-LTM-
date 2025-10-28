@@ -11,9 +11,9 @@ import java.util.List;
 
 public class DatabaseConnector {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:55566/pick_up_trash?serverTimezone=Asia/Ho_Chi_Minh";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/pick_up_trash?serverTimezone=Asia/Ho_Chi_Minh";
     private static final String USER = "root";
-    private static final String PASS = "55566";
+    private static final String PASS = "";
 
     private static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, USER, PASS);
@@ -283,7 +283,8 @@ public class DatabaseConnector {
                 "  u.username AS my_name, " +
                 "  o.username AS opponent_name, " +
                 "  h.result, " +
-                "  h.played_at " +
+                "  h.start_date " +
+                "  h.end_date" +
                 "FROM match_history h " +
                 "JOIN users u ON h.user_id = u.id " +
                 "JOIN users o ON h.opponent_id = o.id " +
@@ -313,9 +314,10 @@ public class DatabaseConnector {
                     String myName = rs.getString("my_name");
                     String opponentName = rs.getString("opponent_name");
                     String result = rs.getString("result").toUpperCase();
-                    String playedAt = rs.getString("played_at");
+                    String playedAt = rs.getString("start_date");
+                    String endDate = rs.getString("end_date");
 
-                    historyList.add(new MatchHistory(myName, opponentName, result, playedAt));
+                    historyList.add(new MatchHistory(myName, opponentName, result, playedAt, endDate));
                 }
             }
 
