@@ -1,15 +1,6 @@
 package server.network;
 
 // Import các lớp cần thiết
-import com.google.gson.Gson;
-import server.data.MatchHistory;
-import server.data.UserProfile;
-import server.data.UserProfileServer;
-import server.network.GameRoom;
-import server.network.GameServer;
-import server.utils.DatabaseConnector;
-import server.utils.DatabaseResponse;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -17,6 +8,14 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.List;
+
+import com.google.gson.Gson;
+
+import server.data.MatchHistory;
+import server.data.UserProfile;
+import server.data.UserProfileServer;
+import server.utils.DatabaseConnector;
+import server.utils.DatabaseResponse;
 
 public class ClientTCPHandler implements Runnable {
     private final Socket clientSocket;
@@ -89,6 +88,14 @@ public class ClientTCPHandler implements Runnable {
     private void handleClientMessage(String message) {
         // Ưu tiên xử lý tin nhắn trong game nếu đã vào phòng
         if (currentRoom != null && !message.startsWith("LOGIN") && !message.startsWith("READY")) {
+            // Xử lý tin nhắn chat riêng biệt
+            if (message.startsWith("CHAT_MESSAGE")) {
+                String[] parts = message.split(";", 2);
+                if (parts.length == 2) {
+                    currentRoom.broadcastChatMessage(this.username, parts[1]);
+                }
+                return;
+            }
             currentRoom.handleGameMessage(message, this.username);
             return;
         }

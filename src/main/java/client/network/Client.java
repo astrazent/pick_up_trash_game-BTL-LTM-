@@ -377,6 +377,15 @@ public class Client {
                 System.err.println("Server không thể lấy dữ liệu lịch sử đấu: " + messageParts[1]);
                 // Có thể hiển thị thông báo lỗi trên UI
                 break;
+
+            case "CHAT_MESSAGE":
+                // Format: CHAT_MESSAGE;senderUsername;message
+                if (game != null && messageParts.length >= 3) {
+                    String senderUsername = messageParts[1];
+                    String chatMessage = messageParts[2];
+                    game.receiveChat(senderUsername, chatMessage);
+                }
+                break;
         }
     }
     // MỚI: Hàm để gửi yêu cầu tạm dừng game đến server
@@ -394,6 +403,13 @@ public class Client {
     // MỚI: Hàm để gửi yêu cầu đầu hàng (thoát khỏi game)
     public void requestSurrender() {
         sendMessage("SURRENDER");
+    }
+
+    // MỚI: Hàm để gửi tin nhắn chat trong trận đấu
+    public void sendChatMessage(String message) {
+        if (message != null && !message.trim().isEmpty()) {
+            sendMessage("CHAT_MESSAGE;" + message.trim());
+        }
     }
 
     public void sendMessage(String message) {

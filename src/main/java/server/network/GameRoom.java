@@ -418,6 +418,22 @@ public class GameRoom implements Runnable {
         }
     }
 
+    // MỚI: Phương thức broadcast tin nhắn chat
+    public void broadcastChatMessage(String senderUsername, String message) {
+        System.out.println("[CHAT] " + senderUsername + ": " + message);
+        
+        // Format: CHAT_MESSAGE;senderUsername;message
+        String chatMessage = "CHAT_MESSAGE;" + senderUsername + ";" + message;
+        
+        // Gửi tin nhắn chat đến tất cả người chơi trong phòng
+        if (player1 != null) {
+            player1.sendMessage(chatMessage);
+        }
+        if (player2 != null) {
+            player2.sendMessage(chatMessage);
+        }
+    }
+
     public void broadcastUDP(String message, String senderUsername) {
         // 1. Xác định người nhận là ai
         System.out.println("check_broadcastUDP: " + message);
