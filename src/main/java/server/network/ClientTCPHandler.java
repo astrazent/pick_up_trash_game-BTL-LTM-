@@ -48,16 +48,14 @@ public class ClientTCPHandler implements Runnable {
 
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                System.out.println("Nhận từ client " + clientSocket.getInetAddress() + ": " + inputLine);
+                System.out.println("Nhan tu client " + clientSocket.getInetAddress() + ": " + inputLine);
                 handleClientMessage(inputLine);
             }
         } catch (IOException e) {
             System.out.println("Client đã ngắt kết nối: " + (username != null ? username : clientSocket.getInetAddress()));
         } finally {
-            if (currentRoom != null) {
-//                currentRoom.removePlayer(this); // Rời phòng nếu đang ở trong phòng
-            }
             server.removeClient(this); // Báo cho server biết client đã rời
+            server.broadcastOnlineList();
             try {
                 clientSocket.close();
             } catch (IOException e) {
@@ -74,9 +72,11 @@ public class ClientTCPHandler implements Runnable {
     public void cleanup() {
         System.out.println("Dọn dẹp tài nguyên cho client: " + (username != null ? username : "UNKNOWN"));
 
-        // 3️⃣ Đóng socket
+        // Đóng socket
         try {
             if (clientSocket != null && !clientSocket.isClosed()) {
+                in.close();
+                out.close();
                 clientSocket.close();
             }
         } catch (IOException e) {
@@ -86,9 +86,13 @@ public class ClientTCPHandler implements Runnable {
         System.out.println("→ Đã cleanup xong cho " + (username != null ? username : "UNKNOWN"));
     }
 
+    public boolean isOnline(){
+        return server.isOnline(this);
+    }
+
     private void handleClientMessage(String message) {
         // Ưu tiên xử lý tin nhắn trong game nếu đã vào phòng
-        if (currentRoom != null && !message.startsWith("LOGIN") && !message.startsWith("READY")) {
+        if (currentRoom != null && !message.startsWith("LOGIN") && !message.startsWith("READY") && !message.startsWith("GET_ALL_USERS")) {
             currentRoom.handleGameMessage(message, this.username);
             return;
         }
@@ -117,6 +121,7 @@ public class ClientTCPHandler implements Runnable {
 
                         // Gửi thông báo thành công kèm theo dữ liệu JSON
                         sendMessage("LOGIN_SUCCESS;" + profileJson);
+                        server.broadcastOnlineList();
                     } else {
                         // Gửi thông báo thất bại kèm theo lý do từ DatabaseResponse
                         sendMessage("LOGIN_FAILED;" + response.getMessage());
@@ -180,6 +185,18 @@ public class ClientTCPHandler implements Runnable {
                     sendMessage("HISTORY_FAILED;" + historyResponse.getMessage());
                 }
                 break;
+            case "GET_ALL_USERS":
+                DatabaseResponse<List<UserProfile>> usersResponse = DatabaseConnector.getAllUsers();
+                if (usersResponse.isSuccess()) {
+                    Gson gson = new Gson();
+                    String usersJson = gson.toJson(usersResponse.getData());
+                    sendMessage("ALL_USERS_DATA;" + usersJson);
+                } else {
+                    sendMessage("ALL_USERS_FAILED;" + usersResponse.getMessage());
+                    System.err.println("Ko the lay DS nguoi choi: " + usersResponse.getMessage());
+                }
+                break;
+
         }
     }
 }
