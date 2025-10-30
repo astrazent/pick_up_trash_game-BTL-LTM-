@@ -83,7 +83,6 @@ public class MenuScene {
             Main.getInstance().showHistoryScene();
         });
 
-<<<<<<< HEAD
         // --- Nút Logout ---
         Button logoutBtn = new Button("Logout");
         logoutBtn.setPrefSize(150, 40);
@@ -95,18 +94,6 @@ public class MenuScene {
             Main.getInstance().showLoginScene();
         });
 
-        // --- Thêm tất cả vào layout ---
-        layout.getChildren().addAll(
-                title,
-                userInfo,
-                onePlayerBtn,
-                twoPlayersBtn,
-                leaderboardBtn,
-                historyBtn,
-                logoutBtn
-        );
-        scene = new Scene(layout, 400, 450);
-=======
         // Bảng danh sách người chơi
         onlineTable = new TableView<>();
 
@@ -116,9 +103,9 @@ public class MenuScene {
 
         statusColumn = new TableColumn<>("Status");
         statusColumn.setCellValueFactory(cellData -> {
-            String username = cellData.getValue().getUsername();
+            String userName = cellData.getValue().getUsername();
             boolean isOnline = Client.getSavedOnlineUsersStatic() != null &&
-                    Client.getSavedOnlineUsersStatic().contains(username);
+                    Client.getSavedOnlineUsersStatic().contains(userName);
             return new SimpleStringProperty(isOnline ? "Online" : "Offline");
         });
         statusColumn.setPrefWidth(60);
@@ -173,9 +160,9 @@ public class MenuScene {
         onlineTable.setMaxWidth(262);
         onlineTable.setPlaceholder(new Text("No players available"));
 
-        layout.getChildren().addAll(title, onePlayerBtn, twoPlayersBtn, leaderboardBtn, historyBtn, onlineTable);
-        scene = new Scene(layout, 400, 500);
->>>>>>> 65059c0394d0b0f62d04cdf11223848ad25f1ed6
+        layout.getChildren().addAll(title , userInfo, logoutBtn, onePlayerBtn, twoPlayersBtn, leaderboardBtn, historyBtn, onlineTable);
+        scene = new Scene(layout, 400, 600);
+
     }
 
     public Scene getScene() {
