@@ -395,9 +395,15 @@ public class GameRoom implements Runnable {
     }
 
     public void broadcastUDP(String message, String senderUsername) {
+<<<<<<< HEAD
         System.out.println("check_broadcastUDP: " + message);
         server.network.ClientTCPHandler receiver = null;
         if (player1 != null && player1.getUsername().equals(senderUsername)) {
+=======
+        // 1. Xác định người nhận là ai
+        server.network.ClientTCPHandler receiver;
+        if (player1.getUsername().equals(senderUsername)) {
+>>>>>>> 65059c0394d0b0f62d04cdf11223848ad25f1ed6
             receiver = player2;
         } else {
             receiver = player1;
@@ -414,6 +420,16 @@ public class GameRoom implements Runnable {
         } else {
             System.out.println("SERVER WARNING: Không tìm thấy địa chỉ UDP cho người nhận " + receiver.getUsername());
         }
+    }
+
+    public synchronized void removePlayer(String username) {
+        // Dừng game nếu đang chạy
+        isRunning = false;
+
+        // Xóa điểm của người chơi rời đi
+        playerScores.remove(username);
+
+        server.removeRoom(this);
     }
 
     public server.network.ClientTCPHandler getPlayer1() {

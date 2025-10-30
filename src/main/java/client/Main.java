@@ -24,6 +24,7 @@ public class Main extends Application {
     private GameScene activeGameScene; // Sẽ lưu đối tượng GameScene đang chạy
     private LeaderboardScene activeLeaderboardScene;
     private HistoryScene activeHistoryScene; // <-- THÊM BIẾN NÀY
+    private MenuScene activeMenuScene;
     public Main() { instance = this; }
     public static Main getInstance() { return instance; }
 
@@ -34,6 +35,7 @@ public class Main extends Application {
     public LeaderboardScene getActiveLeaderboardScene() {
         return activeLeaderboardScene;
     }
+    public MenuScene getActiveMenuScene() {return activeMenuScene; }
 
     public HistoryScene getActiveHistoryScene() {
         return activeHistoryScene;
@@ -90,8 +92,10 @@ public class Main extends Application {
 
     public void showMenuScene() {
         this.activeGameScene = null; // Không có game nào đang chạy
-        MenuScene menuScene = new MenuScene();
-        this.currentScene = menuScene.getScene();
+        if (this.activeMenuScene == null) {
+            this.activeMenuScene = new MenuScene();
+        }
+        this.currentScene = this.activeMenuScene.getScene();
         primaryStage.setScene(this.currentScene);
     }
 

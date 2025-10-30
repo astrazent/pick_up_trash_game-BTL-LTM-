@@ -23,7 +23,9 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Client {
     private static Client instance;
@@ -39,6 +41,9 @@ public class Client {
     private UserProfile userProfile;
 
     private static final Gson gson = new Gson(); // Chỉ cần một Gson instance
+
+    // 🔹 Set lưu danh sách username đang online
+    private final Set<String> savedOnlineUsers = new HashSet<>();
 
     private Client(NetworkConfig config) {
         this.host = config.server.host;
@@ -85,7 +90,7 @@ public class Client {
                 }
             }
         } catch (IOException e) {
-            System.out.println("Mất kết nối TCP với server.");
+            System.out.println("Mat ket noi TCP voi server.");
         }
     }
 
@@ -139,12 +144,11 @@ public class Client {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 udpSocket.receive(packet);
                 String message = new String(packet.getData(), 0, packet.getLength());
-                System.out.printf("client.java: %s", message);
+                System.out.printf("client.java: %s\n", message);
                 String[] parts = message.split(";");
 
                 // Cập nhật để nhận cả x và y
                 if (parts.length == 4 && parts[0].equals("UPDATE_POS")) {
-                    System.out.printf("cập nhật vị trí (client.java): %s", message);
                     String senderUsername = parts[1];
                     double xPos = Double.parseDouble(parts[2]);
                     double yPos = Double.parseDouble(parts[3]);
@@ -160,7 +164,7 @@ public class Client {
                 }
             }
         } catch (IOException e) {
-            System.out.println("Luồng lắng nghe UDP đã dừng.");
+            System.out.println("Luong` lang nghe UDP da dung.");
         }
     }
 
@@ -180,8 +184,8 @@ public class Client {
                     this.userProfile = gson.fromJson(jsonData, UserProfile.class);
 
                     if (this.userProfile != null && this.userProfile.getUsername() != null) {
-                        System.out.println("Đăng nhập thành công! Chào mừng " + this.userProfile.getUsername());
-                        System.out.println("Thông tin người dùng: " + this.userProfile.toString());
+                        System.out.println("Dang nhap thanh cong! Chao mung " + this.userProfile.getUsername());
+                        System.out.println("Thong tin nguoi dung: " + this.userProfile.toString());
                         Main.getInstance().showMenuScene();
                     } else {
                         Main.getInstance().getLoginScene().showError("Dữ liệu người dùng từ server không hợp lệ.");
@@ -402,10 +406,6 @@ public class Client {
                 System.err.println("Server không thể lấy dữ liệu leaderboard: " + messageParts[1]);
                 // Có thể hiển thị thông báo lỗi trên UI
                 break;
-            // client.network.Client.java
-
-// ... (bên trong handleServerMessage, case "HISTORY_DATA") ...
-
             case "HISTORY_DATA":
                 if (messageParts.length < 2) {
                     System.err.println("Dữ liệu lịch sử đấu không hợp lệ.");
@@ -454,6 +454,34 @@ public class Client {
             case "HISTORY_FAILED":
                 System.err.println("Server không thể lấy dữ liệu lịch sử đấu: " + messageParts[1]);
                 // Có thể hiển thị thông báo lỗi trên UI
+                break;
+
+            case "ONLINE_LIST":
+                if (messageParts.length > 1) {
+                    List<String> newOnlineUsers = List.of(Arrays.copyOfRange(messageParts, 1, messageParts.length));
+                    // Cập nhật lại Set người đang online
+                    savedOnlineUsers.clear();
+                    savedOnlineUsers.addAll(newOnlineUsers);
+                    sendMessage("GET_ALL_USERS");
+                }
+                break;
+
+            case "ALL_USERS_DATA":
+                if (messageParts.length < 2) {
+                    System.err.println("Du lieu DS nguoi choi khong hop le.");
+                    return;
+                }
+                try {
+                    String jsonData = messageParts[1];
+                    Gson gson = new Gson();
+                    Type userListType = new TypeToken<List<UserProfile>>(){}.getType();
+                    List<UserProfile> users = gson.fromJson(jsonData, userListType);
+
+                    // Gọi cập nhật bảng trên MenuScene
+                    updateMenuOnlineTable(users);
+                } catch (JsonSyntaxException e) {
+                    System.err.println("Loi phan tich JSON ALL_USERS_DATA: " + e.getMessage());
+                }
                 break;
         }
     }
@@ -512,6 +540,17 @@ public class Client {
     }
 
 
+    // trả về Set nội bộ (mutable) — đừng sửa trực tiếp set này ở bên ngoài, chỉ đọc
+    public Set<String> getSavedOnlineUsers() {
+        return this.savedOnlineUsers;
+    }
+
+    // static tiện lợi (gọi khi bạn không muốn gọi getInstance())
+    public static Set<String> getSavedOnlineUsersStatic() {
+        return (instance != null) ? instance.savedOnlineUsers : new HashSet<>();
+    }
+
+
     public void close() {
         try {
             if (tcpSocket != null) tcpSocket.close();
@@ -519,6 +558,18 @@ public class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // Gọi cập nhật bảng online trên MenuScene
+    private void updateMenuOnlineTable(List<UserProfile> users) {
+        Platform.runLater(() -> {
+            var menuScene = Main.getInstance().getActiveMenuScene();
+            if (menuScene != null) {
+                menuScene.updateOnlineList(users);
+            } else {
+                System.err.println("Không tìm thấy MenuScene đang hoạt động để cập nhật danh sách online.");
+            }
+        });
     }
 
 }
