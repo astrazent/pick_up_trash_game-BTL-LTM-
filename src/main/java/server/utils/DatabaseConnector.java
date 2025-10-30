@@ -326,4 +326,30 @@ public class DatabaseConnector {
             return DatabaseResponse.failure("Lỗi khi truy vấn lịch sử đấu: " + e.getMessage());
         }
     }
+
+    public static DatabaseResponse<List<UserProfile>> getAllUsers() {
+        List<UserProfile> users = new ArrayList<>();
+        String sql = "SELECT id, username, email, high_score FROM users";
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                UserProfile user = new UserProfile();
+                user.setUserId(rs.getInt("id"));
+                user.setUsername(rs.getString("username"));
+                user.setEmail(rs.getString("email"));
+                user.setScore(rs.getInt("high_score"));
+                users.add(user);
+            }
+
+            return DatabaseResponse.success(users, "Lay DS nguoi choi thanh cong.");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return DatabaseResponse.error("Loi CSDL khi lấy DS người chơi: " + e.getMessage());
+        }
+    }
+
 }
