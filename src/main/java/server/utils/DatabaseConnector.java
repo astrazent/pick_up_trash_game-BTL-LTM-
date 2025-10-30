@@ -11,9 +11,9 @@ import java.util.List;
 
 public class DatabaseConnector {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/pick_up_trash?serverTimezone=Asia/Ho_Chi_Minh";
+    private static final String DB_URL = "jdbc:mysql://localhost:55566/pick_up_trash?serverTimezone=Asia/Ho_Chi_Minh";
     private static final String USER = "root";
-    private static final String PASS = "";
+    private static final String PASS = "55566";
 
     private static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, USER, PASS);
