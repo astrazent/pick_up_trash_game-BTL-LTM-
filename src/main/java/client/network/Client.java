@@ -1,20 +1,5 @@
 package client.network;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
-import client.Main;
-import server.config.NetworkConfig;
-import client.data.MatchHistory;
-import client.data.UserProfile;
-import client.game.Player;
-import client.game.Trash;
-import client.game.TrashType;
-import client.scenes.GameScene;
-import client.scenes.HistoryScene;
-import client.scenes.LeaderboardScene;
-import javafx.application.Platform;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -28,6 +13,22 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
+
+import client.Main;
+import client.data.MatchHistory;
+import client.data.UserProfile;
+import client.game.Player;
+import client.game.Trash;
+import client.game.TrashType;
+import client.scenes.GameScene;
+import client.scenes.HistoryScene;
+import client.scenes.LeaderboardScene;
+import javafx.application.Platform;
+import server.config.NetworkConfig;
 
 public class Client {
     private static Client instance;
@@ -383,6 +384,15 @@ public class Client {
                 // Có thể hiển thị thông báo lỗi trên UI
                 break;
 
+            case "CHAT_MESSAGE":
+                // Format: CHAT_MESSAGE;senderUsername;message
+                if (game != null && messageParts.length >= 3) {
+                    String senderUsername = messageParts[1];
+                    String chatMessage = messageParts[2];
+                    game.receiveChat(senderUsername, chatMessage);
+                }
+                break;
+
             case "ONLINE_LIST":
                 if (messageParts.length > 1) {
                     List<String> newOnlineUsers = List.of(Arrays.copyOfRange(messageParts, 1, messageParts.length));
@@ -423,6 +433,18 @@ public class Client {
     // MỚI (Khuyến nghị): Hàm để gửi yêu cầu tiếp tục game
     public void requestResumeGame() {
         sendMessage("RESUME_GAME");
+    }
+
+    // MỚI: Hàm để gửi yêu cầu đầu hàng (thoát khỏi game)
+    public void requestSurrender() {
+        sendMessage("SURRENDER");
+    }
+
+    // MỚI: Hàm để gửi tin nhắn chat trong trận đấu
+    public void sendChatMessage(String message) {
+        if (message != null && !message.trim().isEmpty()) {
+            sendMessage("CHAT_MESSAGE;" + message.trim());
+        }
     }
 
     public void sendMessage(String message) {

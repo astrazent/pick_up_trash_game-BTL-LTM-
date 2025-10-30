@@ -1,28 +1,40 @@
 package client.scenes;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
+
 import client.Main;
 import client.config.GameConfig;
-import client.game.*;
+import client.game.GameLoop;
+import client.game.Player;
+import client.game.Trash;
+import client.game.TrashBin;
+import client.game.TrashType;
 import client.input.InputHandler;
 import client.network.Client;
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
+import javafx.util.Duration;
 
 public class GameScene {
     private final Scene scene;
@@ -41,6 +53,7 @@ public class GameScene {
     private Button settingsButton;
     private VBox pauseMenu;
     private Button pauseResumeButton;
+    private Button surrenderButton; // Nút thoát (đầu hàng)
     private Label pauseStatusLabel;
     private Label pauseChancesLabel;
 
@@ -48,6 +61,20 @@ public class GameScene {
     private HBox heartsBox; // Container cho các trái tim
     private final List<ImageView> heartImageViews = new ArrayList<>();
     private int playerLives = 3; // Số mạng ban đầu
+
+    // --- THÊM: Các yếu tố UI cho Chat ---
+    private VBox chatBox;
+    private VBox chatMessagesContainer;
+    private ScrollPane chatScrollPane;
+    private TextField chatInput;
+    private Button chatSendButton;
+    private Button chatToggleButton;
+    private boolean isChatVisible = false;
+    private int unreadMessageCount = 0; // Số tin nhắn chưa đọc
+    
+    // Biến cho kéo thả nút chat
+    private double dragOffsetX = 0;
+    private double dragOffsetY = 0;
 
     public GameScene(int playerCount, String p1Name, String p2Name) {
         System.out.println("check_game-scene: "+p1Name+" "+p2Name);
@@ -74,6 +101,7 @@ public class GameScene {
         setupPlayers(playerCount, config, p1Name, p2Name);
         setupTrashBins(config);
         setupSettingsAndPauseMenu();
+        setupChatUI(config); // Thiết lập UI chat
 
         root.getChildren().addAll(scoreLabel1, timerLabel, settingsButton, pauseMenu);
 
@@ -147,14 +175,18 @@ public class GameScene {
             return;
         }
 
-        if (playerLives > 0) {
-            playerLives--;
-            updateLivesDisplay();
+        // CHỈ xử lý mất mạng trong mode 1 player
+        if (player2 == null) {
+            if (playerLives > 0) {
+                playerLives--;
+                updateLivesDisplay();
 
-            if (playerLives <= 0) {
-                showGameOver(player1.getUsername());
+                if (playerLives <= 0) {
+                    showGameOver(player1.getUsername());
+                }
             }
         }
+        // Trong mode 2 player, không xử lý gì cả (chỉ trừ điểm đã được xử lý ở server)
     }
 
     // --- MỚI: Cập nhật giao diện hiển thị số mạng còn lại ---
@@ -215,7 +247,24 @@ public class GameScene {
         pauseResumeButton.setFocusTraversable(false);
         pauseResumeButton.setFont(Font.font("Arial", 20));
 
-        pauseMenu.getChildren().addAll(pauseStatusLabel, pauseChancesLabel, pauseResumeButton);
+        // Thêm nút thoát (đầu hàng)
+        surrenderButton = new Button("Thoát");
+        surrenderButton.setFocusTraversable(false);
+        surrenderButton.setFont(Font.font("Arial", 20));
+        surrenderButton.setStyle("-fx-background-color: #d9534f; -fx-text-fill: white;");
+        surrenderButton.setOnAction(e -> {
+            // Xác nhận người chơi có chắc chắn muốn thoát không
+            if (player2 != null) {
+                // Chế độ 2 người chơi: thoát = thua
+                Client.getInstance().requestSurrender();
+            } else {
+                // Chế độ 1 người chơi: chỉ đơn giản thoát về menu
+                gameLoop.stop();
+                Main.getInstance().showMenuScene();
+            }
+        });
+
+        pauseMenu.getChildren().addAll(pauseStatusLabel, pauseChancesLabel, pauseResumeButton, surrenderButton);
 
         pauseMenu.layoutXProperty().bind(root.widthProperty().subtract(pauseMenu.widthProperty()).divide(2));
         pauseMenu.layoutYProperty().bind(root.heightProperty().subtract(pauseMenu.heightProperty()).divide(2));
@@ -256,6 +305,230 @@ public class GameScene {
                 }
             });
         }
+    }
+
+    // MỚI: Thiết lập UI chat
+    private void setupChatUI(GameConfig config) {
+        // Tạo nút toggle chat với khả năng kéo thả
+        chatToggleButton = new Button("💬");
+        chatToggleButton.setFocusTraversable(false);
+        chatToggleButton.setFont(Font.font("Arial", 18));
+        chatToggleButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-padding: 5 10; -fx-cursor: hand;");
+        chatToggleButton.setLayoutX(10);
+        chatToggleButton.setLayoutY(config.window.height - 50);
+        
+        // Thêm khả năng kéo thả cho nút toggle
+        chatToggleButton.setOnMousePressed(event -> {
+            dragOffsetX = event.getSceneX() - chatToggleButton.getLayoutX();
+            dragOffsetY = event.getSceneY() - chatToggleButton.getLayoutY();
+        });
+        
+        chatToggleButton.setOnMouseDragged(event -> {
+            double newX = event.getSceneX() - dragOffsetX;
+            double newY = event.getSceneY() - dragOffsetY;
+            
+            // Giới hạn trong cửa sổ game
+            newX = Math.max(0, Math.min(newX, config.window.width - chatToggleButton.getWidth()));
+            newY = Math.max(0, Math.min(newY, config.window.height - chatToggleButton.getHeight()));
+            
+            chatToggleButton.setLayoutX(newX);
+            chatToggleButton.setLayoutY(newY);
+            
+            // Cập nhật vị trí của chatBox theo nút toggle
+            updateChatBoxPosition(config);
+        });
+        
+        chatToggleButton.setOnMouseClicked(event -> {
+            // Chỉ toggle chat nếu không phải là drag
+            if (Math.abs(event.getSceneX() - (chatToggleButton.getLayoutX() + dragOffsetX)) < 5 &&
+                Math.abs(event.getSceneY() - (chatToggleButton.getLayoutY() + dragOffsetY)) < 5) {
+                toggleChat();
+            }
+        });
+        
+        // Container cho chat messages
+        chatMessagesContainer = new VBox(5);
+        chatMessagesContainer.setStyle("-fx-background-color: rgba(40, 40, 40, 0.9); -fx-padding: 10;");
+        
+        // ScrollPane cho chat messages
+        chatScrollPane = new ScrollPane(chatMessagesContainer);
+        chatScrollPane.setFitToWidth(true);
+        chatScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        chatScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        chatScrollPane.setStyle("-fx-background: rgba(40, 40, 40, 0.9); -fx-background-color: transparent;");
+        chatScrollPane.setPrefHeight(200);
+        
+        // Input field cho chat
+        chatInput = new TextField();
+        chatInput.setPromptText("Nhập tin nhắn...");
+        chatInput.setFocusTraversable(false);
+        chatInput.setStyle("-fx-background-color: #555; -fx-text-fill: white; -fx-prompt-text-fill: #999;");
+        HBox.setHgrow(chatInput, Priority.ALWAYS);
+        
+        // Nút gửi
+        chatSendButton = new Button("Gửi");
+        chatSendButton.setFocusTraversable(false);
+        chatSendButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+        
+        // Container cho input và nút gửi
+        HBox chatInputBox = new HBox(5, chatInput, chatSendButton);
+        chatInputBox.setStyle("-fx-padding: 5;");
+        
+        // Container chính cho chat
+        chatBox = new VBox(5, chatScrollPane, chatInputBox);
+        chatBox.setStyle("-fx-background-color: rgba(30, 30, 30, 0.95); -fx-background-radius: 10; -fx-padding: 5;");
+        chatBox.setPrefWidth(300);
+        chatBox.setMaxHeight(250);
+        chatBox.setLayoutX(10);
+        chatBox.setLayoutY(config.window.height - 310);
+        chatBox.setVisible(false);
+        
+        // Event handlers
+        chatSendButton.setOnAction(e -> sendChatMessage());
+        chatInput.setOnAction(e -> sendChatMessage());
+        
+        // Thêm vào root
+        root.getChildren().addAll(chatToggleButton, chatBox);
+    }
+
+    // MỚI: Cập nhật vị trí chatBox dựa trên vị trí của nút toggle
+    private void updateChatBoxPosition(GameConfig config) {
+        double buttonX = chatToggleButton.getLayoutX();
+        double buttonY = chatToggleButton.getLayoutY();
+        
+        // Tính toán vị trí tốt nhất cho chatBox
+        // Ưu tiên hiển thị chatBox ở phía trên nút toggle
+        double chatBoxX = buttonX;
+        double chatBoxY = buttonY - chatBox.getHeight() - 10; // 10px khoảng cách
+        
+        // Nếu không đủ chỗ ở trên, hiển thị ở dưới
+        if (chatBoxY < 0) {
+            chatBoxY = buttonY + chatToggleButton.getHeight() + 10;
+        }
+        
+        // Đảm bảo chatBox không vượt ra ngoài cửa sổ
+        chatBoxX = Math.max(0, Math.min(chatBoxX, config.window.width - chatBox.getWidth()));
+        chatBoxY = Math.max(0, Math.min(chatBoxY, config.window.height - chatBox.getHeight()));
+        
+        chatBox.setLayoutX(chatBoxX);
+        chatBox.setLayoutY(chatBoxY);
+    }
+
+    // Toggle hiển thị chat
+    private void toggleChat() {
+        isChatVisible = !isChatVisible;
+        chatBox.setVisible(isChatVisible);
+        if (isChatVisible) {
+            // Cập nhật vị trí chatBox trước khi hiển thị
+            GameConfig config = Main.getInstance().getGameConfig();
+            updateChatBoxPosition(config);
+            chatInput.requestFocus();
+            // Reset số tin nhắn chưa đọc khi mở chat
+            unreadMessageCount = 0;
+            updateChatToggleButton();
+        }
+    }
+
+    // Cập nhật nút toggle với số tin nhắn chưa đọc
+    private void updateChatToggleButton() {
+        if (unreadMessageCount > 0) {
+            chatToggleButton.setText("💬 (" + unreadMessageCount + ")");
+            chatToggleButton.setStyle("-fx-background-color: #FF5722; -fx-text-fill: white; -fx-padding: 5 10; -fx-cursor: hand;");
+        } else {
+            chatToggleButton.setText("💬");
+            chatToggleButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-padding: 5 10; -fx-cursor: hand;");
+        }
+    }
+
+    // Gửi tin nhắn chat
+    private void sendChatMessage() {
+        String message = chatInput.getText().trim();
+        if (!message.isEmpty()) {
+            Client.getInstance().sendChatMessage(message);
+            chatInput.clear();
+        }
+    }
+
+    // Nhận và hiển thị tin nhắn chat
+    public void receiveChat(String senderUsername, String message) {
+        String myUsername = Client.getInstance().getUsername();
+        
+        // 1. Thêm tin nhắn vào chatbox
+        Text senderText = new Text(senderUsername + ": ");
+        senderText.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+        
+        Text messageText = new Text(message + "\n");
+        messageText.setFont(Font.font("Arial", FontWeight.NORMAL, 12));
+        
+        // Màu sắc khác nhau cho người gửi và người nhận
+        if (senderUsername.equals(myUsername)) {
+            senderText.setFill(Color.LIGHTGREEN);
+            messageText.setFill(Color.WHITE);
+        } else {
+            senderText.setFill(Color.LIGHTBLUE);
+            messageText.setFill(Color.LIGHTGRAY);
+        }
+        
+        TextFlow textFlow = new TextFlow(senderText, messageText);
+        chatMessagesContainer.getChildren().add(textFlow);
+        
+        // Auto scroll xuống dưới cùng
+        chatScrollPane.setVvalue(1.0);
+        
+        // 2. Hiển thị bong bóng chat tạm thời (chỉ với tin nhắn từ người khác)
+        if (!senderUsername.equals(myUsername)) {
+            showChatBubble(senderUsername, message);
+            
+            // Tăng số tin nhắn chưa đọc nếu chat đang đóng
+            if (!isChatVisible) {
+                unreadMessageCount++;
+                updateChatToggleButton();
+            }
+        }
+    }
+
+    // Hiển thị bong bóng chat tự động biến mất
+    private void showChatBubble(String senderUsername, String message) {
+        // Tạo label cho bong bóng
+        Label bubble = new Label(senderUsername + ": " + message);
+        bubble.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
+        bubble.setTextFill(Color.WHITE);
+        bubble.setStyle(
+            "-fx-background-color: rgba(50, 50, 50, 0.9); " +
+            "-fx-background-radius: 15; " +
+            "-fx-padding: 10 15; " +
+            "-fx-border-color: #4CAF50; " +
+            "-fx-border-radius: 15; " +
+            "-fx-border-width: 2;"
+        );
+        bubble.setMaxWidth(300);
+        bubble.setWrapText(true);
+        
+        // Đặt vị trí bong bóng (góc trên bên trái, dưới score)
+        bubble.setLayoutX(20);
+        bubble.setLayoutY(50);
+        
+        // Thêm vào root
+        root.getChildren().add(bubble);
+        
+        // Hiệu ứng fade in
+        bubble.setOpacity(0);
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), bubble);
+        fadeIn.setFromValue(0);
+        fadeIn.setToValue(1);
+        fadeIn.play();
+        
+        // Tự động biến mất sau 2 giây
+        PauseTransition delay = new PauseTransition(Duration.seconds(2));
+        delay.setOnFinished(event -> {
+            // Hiệu ứng fade out
+            FadeTransition fadeOut = new FadeTransition(Duration.millis(500), bubble);
+            fadeOut.setFromValue(1);
+            fadeOut.setToValue(0);
+            fadeOut.setOnFinished(e -> root.getChildren().remove(bubble));
+            fadeOut.play();
+        });
+        delay.play();
     }
 
     private void clearPauseMenu() {

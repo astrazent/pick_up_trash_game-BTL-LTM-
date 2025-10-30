@@ -1,15 +1,13 @@
 package server.network;
 
-import client.game.TrashType;
-import server.network.ClientTCPHandler;
-import server.network.GameServer;
-import server.utils.DatabaseConnector;
-import server.utils.DatabaseResponse;
-
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import client.game.TrashType;
+import server.utils.DatabaseConnector;
+import server.utils.DatabaseResponse;
 
 class TrashState {
     public int id;
@@ -33,6 +31,7 @@ public class GameRoom implements Runnable {
     private Thread pauseThread;
     private volatile boolean isRunning = false; // MỚI: Sử dụng volatile để đảm bảo an toàn luồng
     private volatile boolean isPaused = false;  // MỚI: Biến trạng thái để kiểm soát việc tạm dừng game
+    private volatile boolean gameEndedBySurrender = false; // MỚI: Đánh dấu game kết thúc do đầu hàng
 
     private final int gameDurationSeconds = 120;
     private final long trashSpawnIntervalMs = 5000;
@@ -111,6 +110,13 @@ public class GameRoom implements Runnable {
                     Thread.sleep(100);
                 }
             }
+            
+            // Kiểm tra nếu game kết thúc do đầu hàng, không cần so sánh điểm
+            if (gameEndedBySurrender) {
+                System.out.println("SERVER: Game đã kết thúc do đầu hàng, bỏ qua so sánh điểm.");
+                return;
+            }
+            
             // Lấy điểm hiện tại của hai người chơi
             int score1 = playerScores.getOrDefault(player1.getUsername(), 0);
             int score2 = 0;
@@ -133,8 +139,8 @@ public class GameRoom implements Runnable {
             if (score1 > score2) {
                 winner = player1.getUsername();
 
-                // Cập nhật điểm
-                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player1.getUsername(), "win");
+                // Cập nhật điểm (Player 1 thắng, Player 2 thua)
+                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player2.getUsername(), "win");
                 DatabaseResponse<Void> res2 = DatabaseConnector.updateScoreAfterMatch(player2.getUsername(), player1.getUsername(), "lose");
                 System.out.println(res1.getMessage());
                 System.out.println(res2.getMessage());
@@ -142,8 +148,8 @@ public class GameRoom implements Runnable {
             } else if (score2 > score1) {
                 winner = player2.getUsername();
 
-                // Cập nhật điểm
-                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player1.getUsername(), "lose");
+                // Cập nhật điểm (Player 1 thua, Player 2 thắng)
+                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player2.getUsername(), "lose");
                 DatabaseResponse<Void> res2 = DatabaseConnector.updateScoreAfterMatch(player2.getUsername(), player1.getUsername(), "win");
                 System.out.println(res1.getMessage());
                 System.out.println(res2.getMessage());
@@ -152,8 +158,8 @@ public class GameRoom implements Runnable {
                 // Hòa
                 broadcast("GAME_OVER;DRAW;" + score1);
 
-                // Cập nhật điểm cho cả hai người chơi
-                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player1.getUsername(), "draw");
+                // Cập nhật điểm cho cả hai người chơi (cả hai đều hòa)
+                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player2.getUsername(), "draw");
                 DatabaseResponse<Void> res2 = DatabaseConnector.updateScoreAfterMatch(player2.getUsername(), player1.getUsername(), "draw");
                 System.out.println(res1.getMessage());
                 System.out.println(res2.getMessage());
@@ -198,6 +204,9 @@ public class GameRoom implements Runnable {
                 break;
             case "RESUME_GAME":
                 handleResumeGame(senderUsername);
+                break;
+            case "SURRENDER":
+                handleSurrender(senderUsername);
                 break;
         }
     }
@@ -277,6 +286,47 @@ public class GameRoom implements Runnable {
         }
     }
 
+    // MỚI: Hàm xử lý khi người chơi đầu hàng (thoát)
+    private void handleSurrender(String surrenderUsername) {
+        System.out.println("SERVER: " + surrenderUsername + " đã đầu hàng!");
+        
+        // Đánh dấu game kết thúc do đầu hàng
+        gameEndedBySurrender = true;
+        
+        // Dừng game ngay lập tức
+        isRunning = false;
+        
+        // Xác định người chiến thắng (người còn lại)
+        String winner;
+        int score1 = playerScores.getOrDefault(player1.getUsername(), 0);
+        int score2 = 0;
+        
+        if (player2 != null) {
+            score2 = playerScores.getOrDefault(player2.getUsername(), 0);
+            
+            if (surrenderUsername.equals(player1.getUsername())) {
+                winner = player2.getUsername();
+                
+                // Cập nhật điểm vào database (Player 1 thua, Player 2 thắng)
+                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player2.getUsername(), "lose");
+                DatabaseResponse<Void> res2 = DatabaseConnector.updateScoreAfterMatch(player2.getUsername(), player1.getUsername(), "win");
+                System.out.println(res1.getMessage());
+                System.out.println(res2.getMessage());
+            } else {
+                winner = player1.getUsername();
+                
+                // Cập nhật điểm vào database (Player 1 thắng, Player 2 thua)
+                DatabaseResponse<Void> res1 = DatabaseConnector.updateScoreAfterMatch(player1.getUsername(), player2.getUsername(), "win");
+                DatabaseResponse<Void> res2 = DatabaseConnector.updateScoreAfterMatch(player2.getUsername(), player1.getUsername(), "lose");
+                System.out.println(res1.getMessage());
+                System.out.println(res2.getMessage());
+            }
+            
+            // Gửi thông báo kết thúc game
+            broadcast("GAME_OVER;" + winner + ";WIN;" + score1 + ";" + score2);
+        }
+    }
+
     private void handlePickTrash(String username, int trashId) {
         TrashState trash = trashStates.get(trashId);
 
@@ -314,7 +364,12 @@ public class GameRoom implements Runnable {
                     newScore = currentScore + 10;
                 } else {
                     broadcast(String.format("WRONG_CLASSIFY;%s", username));
-                    alive1P--;
+                    
+                    // CHỈ giảm alive1P trong mode 1 player
+                    if (player2 == null) {
+                        alive1P--;
+                    }
+                    
                     newScore = currentScore - 5;
                 }
 
@@ -360,6 +415,22 @@ public class GameRoom implements Runnable {
         // Chỉ gửi cho player2 nếu player2 tồn tại
         if (player2 != null) {
             player2.sendMessage(message);
+        }
+    }
+
+    // MỚI: Phương thức broadcast tin nhắn chat
+    public void broadcastChatMessage(String senderUsername, String message) {
+        System.out.println("[CHAT] " + senderUsername + ": " + message);
+        
+        // Format: CHAT_MESSAGE;senderUsername;message
+        String chatMessage = "CHAT_MESSAGE;" + senderUsername + ";" + message;
+        
+        // Gửi tin nhắn chat đến tất cả người chơi trong phòng
+        if (player1 != null) {
+            player1.sendMessage(chatMessage);
+        }
+        if (player2 != null) {
+            player2.sendMessage(chatMessage);
         }
     }
 
