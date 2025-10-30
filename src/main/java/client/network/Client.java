@@ -1,9 +1,9 @@
 package client.network;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import client.Main;
+import com.google.gson.stream.JsonReader;
 import server.config.NetworkConfig;
 import client.data.MatchHistory;
 import client.data.UserProfile;
@@ -15,15 +15,13 @@ import client.scenes.HistoryScene;
 import client.scenes.LeaderboardScene;
 import javafx.application.Platform;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.lang.reflect.Type;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -39,6 +37,8 @@ public class Client {
     private BufferedReader tcpIn;
 
     private UserProfile userProfile;
+
+    private static final Gson gson = new Gson(); // Chỉ cần một Gson instance
 
     private Client(NetworkConfig config) {
         this.host = config.server.host;
@@ -74,13 +74,63 @@ public class Client {
             String serverMessage;
             while ((serverMessage = tcpIn.readLine()) != null) {
                 System.out.println("Nhận TCP từ Server: " + serverMessage);
-                final String[] parts = serverMessage.split(";");
-                Platform.runLater(() -> handleServerMessage(parts));
+
+                // 🔍 Nếu dữ liệu là JSON (bắt đầu bằng { ), parse trực tiếp
+                if (serverMessage.trim().startsWith("{")) {
+                    handleJsonMessage(serverMessage);
+                } else {
+                    // ⚙️ Cũ: dạng text tách bằng dấu ";"
+                    final String[] parts = serverMessage.split(";");
+                    Platform.runLater(() -> handleServerMessage(parts));
+                }
             }
         } catch (IOException e) {
             System.out.println("Mất kết nối TCP với server.");
         }
     }
+
+    private void handleJsonMessage(String json) {
+        try {
+            JsonObject obj = gson.fromJson(json, JsonObject.class);
+            String type = obj.get("type").getAsString();
+
+            if ("HISTORY_DATA".equals(type)) {
+                JsonArray historyJsonArray = obj.getAsJsonArray("data");
+                Type matchHistoryListType = new TypeToken<List<client.data.MatchHistory>>() {}.getType();
+                List<client.data.MatchHistory> historyData = gson.fromJson(historyJsonArray, matchHistoryListType);
+
+                Platform.runLater(() -> {
+                    HistoryScene scene = Main.getInstance().getActiveHistoryScene();
+                    if (scene != null) {
+                        scene.updateHistory(historyData);
+                        System.out.println("✅ Đã cập nhật danh sách lịch sử đấu (" + historyData.size() + " trận)");
+                    }
+                });
+            }
+            else if ("LEADERBOARD_DATA".equals(type)) {
+                JsonArray leaderboardArray = obj.getAsJsonArray("data");
+                Type leaderboardListType = new TypeToken<List<client.data.UserProfile>>() {}.getType();
+                List<client.data.UserProfile> leaderboardData = gson.fromJson(leaderboardArray, leaderboardListType);
+
+                Platform.runLater(() -> {
+                    LeaderboardScene scene = Main.getInstance().getActiveLeaderboardScene();
+                    if (scene != null) {
+                        scene.updateLeaderboard(leaderboardData);
+                        System.out.println("🏆 Đã cập nhật bảng xếp hạng (" + leaderboardData.size() + " người chơi)");
+                    }
+                });
+            }
+            else {
+                System.out.println("Bỏ qua JSON không thuộc HISTORY_DATA hoặc LEADERBOARD_DATA: " + type);
+            }
+
+        } catch (Exception e) {
+            System.err.println("⚠️ Lỗi parse JSON từ server: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+
 
     private void listenToServerUDP() {
         try {
@@ -312,11 +362,20 @@ public class Client {
                     String jsonData = messageParts[1];
                     Gson gson = new Gson();
 
+                    JsonObject responseJson = gson.fromJson(jsonData, JsonObject.class);
+
+                    JsonArray leaderJsonArray = responseJson.getAsJsonArray("data");
+
                     // 1. Định nghĩa kiểu dữ liệu là một List<UserProfile>
                     Type userProfileListType = new TypeToken<List<UserProfile>>() {}.getType();
 
                     // 2. Phân tích chuỗi JSON thành một danh sách các UserProfile
-                    List<UserProfile> leaderboardData = gson.fromJson(jsonData, userProfileListType);
+                    List<UserProfile> leaderboardData = gson.fromJson(leaderJsonArray, userProfileListType);
+
+                    System.out.println("Parsed HISTORY_DATA count: " + leaderboardData.size());
+                    for (client.data.UserProfile userP : leaderboardData) {
+                        System.out.println("Leaderboard: " + userP.getUsername() + ", " + userP.getScore());
+                    }
 
                     // 3. Cập nhật giao diện trên luồng chính của JavaFX
                     Platform.runLater(() -> {
@@ -331,9 +390,10 @@ public class Client {
                     });
 
                 } catch (JsonSyntaxException e) {
-                    // Xử lý lỗi nếu server gửi về một chuỗi JSON không đúng định dạng
-                    System.err.println("Lỗi phân tích JSON từ server: " + e.getMessage());
-                    // Có thể hiển thị thông báo lỗi trên UI nếu cần
+                    System.err.println("Lỗi phân tích JSON lịch sử đấu từ server: " + e.getMessage());
+                } catch (Exception e) { // Bắt các lỗi khác có thể xảy ra
+                    System.err.println("Lỗi tổng quát khi xử lý LEADERBOARD_DATA: " + e.getMessage());
+                    e.printStackTrace();
                 }
                 break;
 
@@ -342,20 +402,35 @@ public class Client {
                 System.err.println("Server không thể lấy dữ liệu leaderboard: " + messageParts[1]);
                 // Có thể hiển thị thông báo lỗi trên UI
                 break;
+            // client.network.Client.java
+
+// ... (bên trong handleServerMessage, case "HISTORY_DATA") ...
+
             case "HISTORY_DATA":
                 if (messageParts.length < 2) {
                     System.err.println("Dữ liệu lịch sử đấu không hợp lệ.");
                     return;
                 }
                 try {
-                    String jsonData = messageParts[1];
+                    String fullJsonString = messageParts[1]; // Đây là toàn bộ phần JSON sau "HISTORY_DATA;"
                     Gson gson = new Gson();
 
-                    // Định nghĩa kiểu dữ liệu là một List<MatchHistory>
-                    Type matchHistoryListType = new TypeToken<List<MatchHistory>>() {}.getType();
+                    // Bước 1: Parse toàn bộ chuỗi JSON thành một JsonObject
+                    JsonObject responseJson = gson.fromJson(fullJsonString, JsonObject.class);
 
-                    // Phân tích JSON thành danh sách đối tượng
-                    List<MatchHistory> historyData = gson.fromJson(jsonData, matchHistoryListType);
+                    // Bước 2: Lấy phần "data" từ JsonObject. "data" sẽ là một JsonArray
+                    JsonArray historyJsonArray = responseJson.getAsJsonArray("data");
+
+                    // Bước 3: Định nghĩa kiểu dữ liệu là một List<MatchHistory>
+                    Type matchHistoryListType = new TypeToken<List<client.data.MatchHistory>>() {}.getType();
+
+                    // Bước 4: Phân tích JsonArray thành danh sách đối tượng
+                    List<client.data.MatchHistory> historyData = gson.fromJson(historyJsonArray, matchHistoryListType);
+
+                    System.out.println("Parsed HISTORY_DATA count: " + historyData.size());
+                    for (client.data.MatchHistory match : historyData) {
+                        System.out.println("Match: " + match.getOpponentName() + ", " + match.getResult() + ", " + match.getStartDate() + ", " + match.getGameDate());
+                    }
 
                     // Cập nhật giao diện trên luồng chính của JavaFX
                     Platform.runLater(() -> {
@@ -369,8 +444,12 @@ public class Client {
 
                 } catch (JsonSyntaxException e) {
                     System.err.println("Lỗi phân tích JSON lịch sử đấu từ server: " + e.getMessage());
+                } catch (Exception e) { // Bắt các lỗi khác có thể xảy ra
+                    System.err.println("Lỗi tổng quát khi xử lý HISTORY_DATA: " + e.getMessage());
+                    e.printStackTrace();
                 }
                 break;
+// ...
 
             case "HISTORY_FAILED":
                 System.err.println("Server không thể lấy dữ liệu lịch sử đấu: " + messageParts[1]);
@@ -409,9 +488,29 @@ public class Client {
         return (this.userProfile != null) ? this.userProfile.getUsername() : null;
     }
 
+    public void setUsername(String username) {this.userProfile.setUsername(username);}
+
+    public int getHighScore() {
+        return (this.userProfile != null) ? this.userProfile.getScore() : 0;
+    }
+
+
     public UserProfile getUserProfile() {
         return this.userProfile;
     }
+
+    public void requestMatchHistory() {
+        // Gửi lệnh GET_HISTORY. Server của bạn dùng this.username, nên không cần gửi kèm username
+        sendMessage("GET_HISTORY");
+        System.out.println("DEBUG (Client): Đã gửi lệnh GET_HISTORY tới server.");
+    }
+
+    public void requestLeaderboard() {
+        // Gửi lệnh GET_LEADERBOARD. Server của bạn dùng this.username, nên không cần gửi kèm username
+        sendMessage("GET_LEADERBOARD");
+        System.out.println("DEBUG (Client): Đã gửi lệnh GET_LEADERBOARD tới server.");
+    }
+
 
     public void close() {
         try {
@@ -421,4 +520,5 @@ public class Client {
             e.printStackTrace();
         }
     }
+
 }

@@ -169,7 +169,7 @@ public class DatabaseConnector {
      * - Tạo bản ghi mới trong match_history với start_date = NOW()
      * - end_date, score, result để NULL cho đến khi kết thúc.
      */
-    public static DatabaseResponse<Void> startMatch(String username, String opponentName) {
+    public static DatabaseResponse<Integer> startMatch(String username, String opponentName) {
         System.out.println("=== [DEBUG] GỌI startMatch() ===");
         System.out.println("  → username: " + username);
         System.out.println("  → opponentName: " + opponentName);
@@ -178,70 +178,53 @@ public class DatabaseConnector {
         String insertHistorySql = "INSERT INTO match_history (user_id, opponent_id, start_date) VALUES (?, ?, NOW())";
 
         try (Connection conn = getConnection()) {
-            System.out.println("  → Đã kết nối DB thành công.");
             conn.setAutoCommit(false);
 
             int userId = -1;
             int opponentId = -1;
 
-            // 🔹 Lấy user_id của người chơi
-            System.out.println("  → Đang tìm user_id cho: " + username);
+            // 🔹 Lấy user_id
             try (PreparedStatement pstmt = conn.prepareStatement(findUserSql)) {
                 pstmt.setString(1, username);
                 ResultSet rs = pstmt.executeQuery();
-                if (rs.next()) {
-                    userId = rs.getInt("id");
-                    System.out.println("    ✔ user_id = " + userId);
-                } else {
-                    System.err.println("    ❌ Không tìm thấy người chơi: " + username);
-                    conn.rollback();
-                    return DatabaseResponse.error("Không tìm thấy người chơi: " + username);
-                }
+                if (rs.next()) userId = rs.getInt("id");
+                else return DatabaseResponse.error("Không tìm thấy người chơi: " + username);
             }
 
-            // 🔹 Lấy opponent_id của đối thủ
+            // 🔹 Lấy opponent_id
             if (username.equals(opponentName)) {
-                System.out.println("  → Trận 1P (đấu với chính mình). opponentId = userId");
                 opponentId = userId;
             } else {
-                System.out.println("  → Đang tìm opponent_id cho: " + opponentName);
                 try (PreparedStatement pstmt = conn.prepareStatement(findUserSql)) {
                     pstmt.setString(1, opponentName);
                     ResultSet rs = pstmt.executeQuery();
-                    if (rs.next()) {
-                        opponentId = rs.getInt("id");
-                        System.out.println("    ✔ opponent_id = " + opponentId);
-                    } else {
-                        System.err.println("    ❌ Không tìm thấy đối thủ: " + opponentName);
-                        conn.rollback();
-                        return DatabaseResponse.error("Không tìm thấy đối thủ: " + opponentName);
-                    }
+                    if (rs.next()) opponentId = rs.getInt("id");
+                    else return DatabaseResponse.error("Không tìm thấy đối thủ: " + opponentName);
                 }
             }
 
-            // 🔹 Thêm bản ghi vào match_history
-            System.out.println("  → Chuẩn bị chèn vào match_history:");
-            System.out.println("     user_id = " + userId + ", opponent_id = " + opponentId);
-            try (PreparedStatement pstmt = conn.prepareStatement(insertHistorySql)) {
+            // 🔹 Thêm bản ghi match_history và lấy match_id
+            int matchId = -1;
+            try (PreparedStatement pstmt = conn.prepareStatement(insertHistorySql, Statement.RETURN_GENERATED_KEYS)) {
                 pstmt.setInt(1, userId);
                 pstmt.setInt(2, opponentId);
-                int rows = pstmt.executeUpdate();
-                System.out.println("    ✔ Đã thêm " + rows + " dòng vào match_history.");
+                pstmt.executeUpdate();
+
+                ResultSet rs = pstmt.getGeneratedKeys();
+                if (rs.next()) matchId = rs.getInt(1);
             }
 
-            // 🔹 Commit giao dịch
             conn.commit();
-            System.out.println("  → Đã commit giao dịch thành công!");
-            System.out.println("=== [DEBUG] KẾT THÚC startMatch() ===\n");
+            System.out.println("=== [DEBUG] MATCH_ID tạo ra: " + matchId + " ===");
 
-            return DatabaseResponse.success("✅ Bắt đầu trận đấu thành công — đã lưu vào DB.");
+            return DatabaseResponse.success(matchId, "✅ Bắt đầu trận đấu thành công — match_id: " + matchId);
 
         } catch (SQLException e) {
-            System.err.println("❌ Lỗi SQL trong startMatch(): " + e.getMessage());
             e.printStackTrace();
-            return DatabaseResponse.error("❌ Lỗi cơ sở dữ liệu khi bắt đầu trận đấu: " + e.getMessage());
+            return DatabaseResponse.error("❌ Lỗi khi bắt đầu trận đấu: " + e.getMessage());
         }
     }
+
 
 
 
@@ -251,48 +234,30 @@ public class DatabaseConnector {
      * - Cập nhật match_history (score, result, end_date)
      * - Cập nhật high_score nếu cần
      */
-    public static DatabaseResponse<Void> updateScoreAfterMatch(String username, String opponentName, String result) {
-        DatabaseResponse<Integer> currentScoreResponse = getUserScore(username);
-        if (!currentScoreResponse.isSuccess()) {
-            return DatabaseResponse.error("Không thể lấy điểm người chơi: " + currentScoreResponse.getMessage());
-        }
+    /**
+     * Cập nhật điểm và kết quả cho 1 bản ghi match_history cụ thể (dựa vào match_id).
+     */
+    public static DatabaseResponse<Void> updateScoreAfterMatch(int matchId, String username, String result) {
+        System.out.println("[DEBUG] updateScoreAfterMatch called → matchId=" + matchId + ", username=" + username + ", result=" + result);
 
-        int currentScore = currentScoreResponse.getData();
-        int newScore = currentScore;
-
-        // ✅ Tính điểm mới theo kết quả
-        switch (result.toLowerCase()) {
-            case "win":
-                newScore += 10;
-                break;
-            case "lose":
-                newScore = Math.max(0, currentScore - 5);
-                break;
-            case "draw":
-                newScore += 5;
-                break;
-            default:
-                return DatabaseResponse.error("Kết quả không hợp lệ: " + result);
-        }
-
-        // ✅ Câu SQL
         String findUserSql = "SELECT id, high_score FROM users WHERE username = ?";
-        String findOpponentSql = "SELECT id FROM users WHERE username = ?";
-        String updateHistorySql = """
-        UPDATE match_history
-        SET score = ?, result = ?, end_date = NOW()
-        WHERE user_id = ? AND opponent_id = ? AND end_date IS NULL
-    """;
+        String updateHistorySql = "UPDATE match_history SET score = ?, result = ?, end_date = NOW() WHERE id = ?";
         String updateHighScoreSql = "UPDATE users SET high_score = ? WHERE id = ?";
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
 
+            // 1️⃣ Lấy user_id, current_score, high_score
             int userId;
-            int opponentId;
+            int currentScore;
             int currentHighScore;
 
-            // 1️⃣ Lấy user_id và high_score
+            DatabaseResponse<Integer> scoreRes = getUserScore(username);
+            if (!scoreRes.isSuccess()) {
+                return DatabaseResponse.error("Không thể lấy điểm hiện tại: " + scoreRes.getMessage());
+            }
+            currentScore = scoreRes.getData();
+
             try (PreparedStatement pstmt = conn.prepareStatement(findUserSql)) {
                 pstmt.setString(1, username);
                 ResultSet rs = pstmt.executeQuery();
@@ -304,32 +269,36 @@ public class DatabaseConnector {
                 }
             }
 
-            // 2️⃣ Lấy opponent_id
-            try (PreparedStatement pstmt = conn.prepareStatement(findOpponentSql)) {
-                pstmt.setString(1, opponentName);
-                ResultSet rs = pstmt.executeQuery();
-                if (rs.next()) {
-                    opponentId = rs.getInt("id");
-                } else {
-                    return DatabaseResponse.error("Không tìm thấy đối thủ: " + opponentName);
-                }
+            // 2️⃣ Tính điểm mới
+            int newScore;
+            switch (result.toLowerCase()) {
+                case "win":
+                    newScore = currentScore + 10;
+                    break;
+                case "lose":
+                    newScore = Math.max(0, currentScore - 5);
+                    break;
+                case "draw":
+                    newScore = currentScore + 5;
+                    break;
+                default:
+                    return DatabaseResponse.error("Kết quả không hợp lệ: " + result);
             }
 
-            // 3️⃣ Cập nhật lịch sử trận đấu (đã được tạo khi bắt đầu)
+            // 3️⃣ Cập nhật match_history dựa theo match_id
             try (PreparedStatement pstmt = conn.prepareStatement(updateHistorySql)) {
                 pstmt.setInt(1, newScore);
                 pstmt.setString(2, result.toLowerCase());
-                pstmt.setInt(3, userId);
-                pstmt.setInt(4, opponentId);
-                int rowsUpdated = pstmt.executeUpdate();
+                pstmt.setInt(3, matchId);
+                int updated = pstmt.executeUpdate();
 
-                if (rowsUpdated == 0) {
+                if (updated == 0) {
                     conn.rollback();
-                    return DatabaseResponse.error("Không tìm thấy trận đấu đang diễn ra để cập nhật!");
+                    return DatabaseResponse.error("❌ Không tìm thấy trận đấu có match_id: " + matchId);
                 }
             }
 
-            // 4️⃣ Cập nhật high_score nếu vượt điểm cao nhất
+            // 4️⃣ Cập nhật high_score nếu vượt qua điểm cao nhất
             if (newScore > currentHighScore) {
                 try (PreparedStatement pstmt = conn.prepareStatement(updateHighScoreSql)) {
                     pstmt.setInt(1, newScore);
@@ -339,13 +308,14 @@ public class DatabaseConnector {
             }
 
             conn.commit();
-            return DatabaseResponse.success("Cập nhật kết quả trận đấu và điểm thành công.");
+            return DatabaseResponse.success("✅ Cập nhật kết quả và điểm thành công.");
 
         } catch (SQLException e) {
             e.printStackTrace();
-            return DatabaseResponse.error("Lỗi cơ sở dữ liệu khi cập nhật trận đấu: " + e.getMessage());
+            return DatabaseResponse.error("❌ Lỗi cơ sở dữ liệu khi cập nhật trận đấu: " + e.getMessage());
         }
     }
+
 
     /**
      * Lấy danh sách điểm cao từ users.high_score.
@@ -383,13 +353,15 @@ public class DatabaseConnector {
                 "  u.username AS my_name, " +
                 "  o.username AS opponent_name, " +
                 "  h.result, " +
-                "  h.start_date " +
-                "  h.end_date" +
-                "FROM match_history h " +
+                "  h.start_date, " +
+                "  h.end_date " +   // ✅ có dấu phẩy và cách
+                "FROM match_history h " + // ✅ có khoảng trắng đầu dòng
                 "JOIN users u ON h.user_id = u.id " +
                 "JOIN users o ON h.opponent_id = o.id " +
                 "WHERE h.user_id = ? " +
-                "ORDER BY h.played_at DESC";
+                "ORDER BY h.start_date DESC";
+
+
 
         try (Connection conn = getConnection()) {
             int userId;

@@ -2,6 +2,7 @@ package server.network;
 
 // Import các lớp cần thiết
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import server.data.MatchHistory;
 import server.data.UserProfile;
 import server.data.UserProfileServer;
@@ -157,28 +158,30 @@ public class ClientTCPHandler implements Runnable {
                 }
                 break;
 
-            // Bạn có thể thêm các command khác ở đây, ví dụ: lấy bảng xếp hạng
-             case "GET_LEADERBOARD":
-                 DatabaseResponse<List<UserProfile>> leaderboardResponse = DatabaseConnector.getLeaderboard();
-                 if (leaderboardResponse.isSuccess()) {
-                     Gson gson = new Gson();
-                     String leaderboardJson = gson.toJson(leaderboardResponse.getData());
-                     sendMessage("LEADERBOARD_DATA;" + leaderboardJson);
-                 } else {
-                     sendMessage("LEADERBOARD_FAILED;" + leaderboardResponse.getMessage());
-                 }
-                 break;
-            case "GET_HISTORY":
-                // Gọi phương thức từ DatabaseConnector với ID của người dùng hiện tại
-                DatabaseResponse<List<MatchHistory>> historyResponse = DatabaseConnector.getMatchHistory(username);
-
-                if (historyResponse.isSuccess()) {
-                    Gson gson = new Gson();
-                    String historyJson = gson.toJson(historyResponse.getData());
-                    sendMessage("HISTORY_DATA;" + historyJson);
+            case "GET_LEADERBOARD":
+                DatabaseResponse<List<UserProfile>> leaderboardResponse = DatabaseConnector.getLeaderboard();
+                JsonObject leaderboardJsonObj = new JsonObject(); // Tạo JSON Object mới
+                if (leaderboardResponse.isSuccess()) {
+                    leaderboardJsonObj.addProperty("type", "LEADERBOARD_DATA"); // Thêm loại tin nhắn
+                    leaderboardJsonObj.add("data", new Gson().toJsonTree(leaderboardResponse.getData())); // Thêm dữ liệu
                 } else {
-                    sendMessage("HISTORY_FAILED;" + historyResponse.getMessage());
+                    leaderboardJsonObj.addProperty("type", "LEADERBOARD_FAILED");
+                    leaderboardJsonObj.addProperty("message", leaderboardResponse.getMessage());
                 }
+                sendMessage(new Gson().toJson(leaderboardJsonObj)); // Gửi JSON Object hoàn chỉnh
+                break;
+
+            case "GET_HISTORY":
+                DatabaseResponse<List<MatchHistory>> historyResponse = DatabaseConnector.getMatchHistory(username);
+                JsonObject historyJsonObj = new JsonObject(); // Tạo JSON Object mới
+                if (historyResponse.isSuccess()) {
+                    historyJsonObj.addProperty("type", "HISTORY_DATA"); // Thêm loại tin nhắn
+                    historyJsonObj.add("data", new Gson().toJsonTree(historyResponse.getData())); // Thêm dữ liệu
+                } else {
+                    historyJsonObj.addProperty("type", "HISTORY_FAILED");
+                    historyJsonObj.addProperty("message", historyResponse.getMessage());
+                }
+                sendMessage(new Gson().toJson(historyJsonObj)); // Gửi JSON Object hoàn chỉnh
                 break;
         }
     }

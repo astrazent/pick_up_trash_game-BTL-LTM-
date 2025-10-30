@@ -34,13 +34,14 @@ CREATE TABLE match_history (
    user_id INT UNSIGNED NOT NULL,
    opponent_id INT UNSIGNED NOT NULL,
    score INT NOT NULL DEFAULT 0,
-   result ENUM('win', 'lose', 'draw') DEFAULT 'draw',
+   result ENUM('win', 'lose', 'draw') NOT NULL DEFAULT 'draw',
    start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-   end_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+   end_date DATETIME NULL,
    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
    FOREIGN KEY (opponent_id) REFERENCES users(id) ON DELETE CASCADE,
    INDEX idx_user_date (user_id, start_date)
 ) ENGINE=InnoDB;
+
 
 
 -- 4. TẠO BẢNG 'friends'
