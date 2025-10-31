@@ -175,17 +175,26 @@ public class GameScene {
             return;
         }
 
-        // CHỈ xử lý mất mạng trong mode 1 player
-        if (player2 == null) {
-            if (playerLives > 0) {
-                playerLives--;
-                updateLivesDisplay();
+        // Chỉ xử lý mất mạng trong chế độ 1 người
+        if (player2 != null) {
+            // Chế độ 2 người chơi: không trừ mạng, chỉ thua khi hết giờ hoặc đầu hàng
+            return;
+        }
 
-                if (playerLives <= 0) {
-                    showGameOver(player1.getUsername());
-                }
+        if (!playerName.equals(player1.getUsername())) {
+            System.out.println("Lỗi: tên người chơi không hợp lệ (" + playerName + ")");
+            return;
+        }
+
+        if (playerLives > 0) {
+            playerLives--;
+            updateLivesDisplay();
+
+            if (playerLives <= 0) {
+                showGameOver(player1.getUsername());
             }
         }
+
         // Trong mode 2 player, không xử lý gì cả (chỉ trừ điểm đã được xử lý ở server)
     }
 

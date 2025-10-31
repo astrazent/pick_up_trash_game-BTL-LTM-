@@ -567,10 +567,10 @@ public class Client {
     }
 
     public void requestMatchHistory() {
-        // Gửi lệnh GET_HISTORY. Server của bạn dùng this.username, nên không cần gửi kèm username
+        System.out.println("DEBUG (Client): Username gửi GET_HISTORY = " + getUsername());
         sendMessage("GET_HISTORY");
-        System.out.println("DEBUG (Client): Đã gửi lệnh GET_HISTORY tới server.");
     }
+
 
     public void requestLeaderboard() {
         // Gửi lệnh GET_LEADERBOARD. Server của bạn dùng this.username, nên không cần gửi kèm username

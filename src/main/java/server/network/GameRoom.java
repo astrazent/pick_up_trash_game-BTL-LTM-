@@ -206,6 +206,12 @@ public class GameRoom implements Runnable {
             // Gửi kết quả cho mọi client
             broadcast("GAME_OVER;" + winner + ";WIN;" + score1 + ";" + score2);
 
+            // ✅ Reset currentRoom sau khi game kết thúc
+            if (player1 != null) player1.setCurrentRoom(null);
+            if (player2 != null) player2.setCurrentRoom(null);
+            System.out.println("Room " + roomCode + " đã đóng — reset currentRoom cho người chơi.");
+
+
         } catch (InterruptedException e) {
             System.out.println("GameRoom bị gián đoạn.");
             isRunning = false;
@@ -362,6 +368,12 @@ public class GameRoom implements Runnable {
 
             // Gửi thông báo kết thúc game
             broadcast("GAME_OVER;" + winner + ";WIN;" + score1 + ";" + score2);
+
+            // ✅ Reset currentRoom sau khi game kết thúc
+            if (player1 != null) player1.setCurrentRoom(null);
+            if (player2 != null) player2.setCurrentRoom(null);
+            System.out.println("Room " + roomCode + " đã đóng — reset currentRoom cho người chơi.");
+
         }
     }
 
@@ -488,14 +500,56 @@ public class GameRoom implements Runnable {
     }
 
     public synchronized void removePlayer(String username) {
-        // Dừng game nếu đang chạy
+        System.out.println("⚠️ SERVER: Người chơi " + username + " đã rời phòng " + roomCode);
+
+        // Dừng game
         isRunning = false;
 
-        // Xóa điểm của người chơi rời đi
+        // Nếu là phòng 2 người và chưa đầu hàng thì xử lý kết quả
+        if (player2 != null && !gameEndedBySurrender) {
+            String winner;
+            String loser = username;
+
+            if (player1 != null && username.equals(player1.getUsername())) {
+                winner = player2.getUsername();
+
+                if (matchId1 > 0)
+                    DatabaseConnector.updateScoreAfterMatch(matchId1, player1.getUsername(), "lose");
+                if (matchId2 > 0)
+                    DatabaseConnector.updateScoreAfterMatch(matchId2, player2.getUsername(), "win");
+
+            } else if (player2 != null && username.equals(player2.getUsername())) {
+                winner = player1.getUsername();
+
+                if (matchId1 > 0)
+                    DatabaseConnector.updateScoreAfterMatch(matchId1, player1.getUsername(), "win");
+                if (matchId2 > 0)
+                    DatabaseConnector.updateScoreAfterMatch(matchId2, player2.getUsername(), "lose");
+
+            } else {
+                System.out.println("⚠️ Không xác định được ai rời — bỏ qua cập nhật kết quả.");
+                server.removeRoom(this);
+                return;
+            }
+
+            // Gửi thông báo kết thúc game cho người còn lại
+            broadcast("GAME_OVER;" + winner + ";WIN_BY_DISCONNECT");
+            System.out.println("✅ Ghi kết quả: " + winner + " thắng do đối thủ rời phòng.");
+
+            // Reset currentRoom để tránh lỗi khi vào phòng mới
+            if (player1 != null) player1.setCurrentRoom(null);
+            if (player2 != null) player2.setCurrentRoom(null);
+        }
+
+        // Xóa điểm người chơi rời
         playerScores.remove(username);
 
+        // Xóa phòng
         server.removeRoom(this);
+
+        System.out.println("🧹 Phòng " + roomCode + " đã được dọn dẹp (removePlayer).");
     }
+
 
     public server.network.ClientTCPHandler getPlayer1() {
         return player1;
