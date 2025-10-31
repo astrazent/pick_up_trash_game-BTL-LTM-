@@ -1,7 +1,9 @@
 package client.scenes;
 
 import client.Main;
+import client.data.MatchHistory;
 import client.data.UserProfile;
+import client.network.Client;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -20,23 +22,28 @@ import java.util.List;
 public class LeaderboardScene {
     private Scene scene;
     private TableView<LeaderboardEntry> table;
+
     public void updateLeaderboard(List<UserProfile> users) {
-        for (UserProfile user : users) {
-            System.out.println("UserId: " + user.getUserId()
-                    + ", Username: " + user.getUsername());
-        }
-        ObservableList<LeaderboardEntry> data = FXCollections.observableArrayList();
-        if (users == null) {
-            table.setItems(data); // Xóa bảng nếu không có dữ liệu
+        System.out.println("updateLeaderboard called. Matches received: " + (users != null ? users.size() : "null"));
+        ObservableList<LeaderboardScene.LeaderboardEntry> data = FXCollections.observableArrayList();
+
+        if (users == null || users.isEmpty()) { // Xử lý trường hợp không có dữ liệu
+            table.setPlaceholder(new Text("No leaderboard found.")); // Hiển thị thông báo khi không có dữ liệu
+            table.setItems(data); // Đặt danh sách rỗng
             return;
         }
 
         int rank = 1;
-        for (UserProfile user : users) {
-            data.add(new LeaderboardEntry(rank++, user.getUsername(), user.getScore()));
+        for (UserProfile userProfile : users) {
+            data.add(new LeaderboardEntry(
+                    rank++,
+                    userProfile.getUsername(),
+                    userProfile.getScore()
+            ));
         }
 
         table.setItems(data);
+        table.setPlaceholder(null); // Xóa placeholder nếu có dữ liệu
     }
 
     public LeaderboardScene() {
@@ -67,13 +74,6 @@ public class LeaderboardScene {
         table.getColumns().addAll(rankCol, nameCol, scoreCol);
 
         // TODO: Lấy dữ liệu thực từ server và cập nhật bảng
-        // Dữ liệu mẫu để hiển thị
-        ObservableList<LeaderboardEntry> data = FXCollections.observableArrayList(
-                new LeaderboardEntry(1, "PlayerOne", 1500),
-                new LeaderboardEntry(2, "PlayerTwo", 1200),
-                new LeaderboardEntry(3, "PlayerThree", 950)
-        );
-        table.setItems(data);
 
         Button backBtn = new Button("Back to Menu");
         backBtn.setPrefSize(150, 40);
@@ -83,6 +83,13 @@ public class LeaderboardScene {
 
         layout.getChildren().addAll(title, table, backBtn);
         scene = new Scene(layout, 400, 400); // Tăng chiều cao để chứa bảng
+    }
+
+    public void refreshData() {
+        // Gửi yêu cầu lấy lịch sử đấu đến server
+        // Dữ liệu sẽ được nhận và cập nhật thông qua Client.handleServerMessage
+        Client.getInstance().requestLeaderboard();
+        System.out.println("DEBUG (LeaderboardScene): Yêu cầu lịch sử đấu đã được gửi.");
     }
 
     public Scene getScene() {

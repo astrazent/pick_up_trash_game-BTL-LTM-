@@ -17,6 +17,9 @@ public class Main extends Application {
     private LoginScene loginScene;
     private Scene currentScene;
 
+    private HistoryScene historyScene;
+    private LeaderboardScene leaderboardScene;
+
     // --- BIẾN QUAN TRỌNG CẦN THÊM ---
     private GameScene activeGameScene; // Sẽ lưu đối tượng GameScene đang chạy
     private LeaderboardScene activeLeaderboardScene;
@@ -52,6 +55,9 @@ public class Main extends Application {
             // Có thể hiện một Alert ở đây để thông báo cho người dùng
             return;
         }
+
+        historyScene = new HistoryScene();
+        leaderboardScene = new LeaderboardScene();
 
         // 4. Khởi tạo và kết nối Client mạng
         // LƯU Ý: Dòng connect() này sẽ làm chương trình bị "treo"
@@ -111,17 +117,18 @@ public class Main extends Application {
 
     // Thêm phương thức này vào lớp Main.java
     public void showLeaderboardScene() {
-        this.activeGameScene = null;
-        this.activeLeaderboardScene = new LeaderboardScene(); // Lưu lại thể hiện
-        this.currentScene = this.activeLeaderboardScene.getScene();
-        primaryStage.setScene(this.currentScene);
+        primaryStage.setScene(leaderboardScene.getScene());
+        this.activeLeaderboardScene = leaderboardScene;
+        leaderboardScene.refreshData();
+        primaryStage.setTitle("Leaderboard");
     }
 
     public void showHistoryScene() {
-        this.activeGameScene = null;
-        this.activeHistoryScene = new HistoryScene(); // Tạo và lưu lại thể hiện
-        this.currentScene = this.activeHistoryScene.getScene();
-        primaryStage.setScene(this.currentScene);
+        // Không cần kiểm tra if (this.historyScene == null) nữa vì nó đã được khởi tạo trong constructor
+        primaryStage.setScene(historyScene.getScene());
+        this.activeHistoryScene = historyScene;
+        historyScene.refreshData(); // GỌI refreshData() Ở ĐÂY KHI CHUYỂN SCENE
+        primaryStage.setTitle("Match History");
     }
 
     // Sửa hàm showGameScene (1 người chơi)

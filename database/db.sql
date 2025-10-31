@@ -29,17 +29,20 @@ CREATE TABLE users (
 ) ENGINE=InnoDB;
 
 -- 3. TẠO BẢNG 'match_history'
-CREATE TABLE `match_history` (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id INT UNSIGNED NOT NULL,
-    opponent_id INT UNSIGNED NOT NULL,
-    score INT NOT NULL,
-    result ENUM('win', 'lose', 'draw') NOT NULL,
-    played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES `users`(id) ON DELETE CASCADE,
-    FOREIGN KEY (opponent_id) REFERENCES `users`(id) ON DELETE CASCADE,
-    INDEX idx_user_date (user_id, played_at)
+CREATE TABLE match_history (
+   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+   user_id INT UNSIGNED NOT NULL,
+   opponent_id INT UNSIGNED NOT NULL,
+   score INT NOT NULL DEFAULT 0,
+   result ENUM('win', 'lose', 'draw') NOT NULL DEFAULT 'draw',
+   start_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+   end_date DATETIME NULL,
+   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+   FOREIGN KEY (opponent_id) REFERENCES users(id) ON DELETE CASCADE,
+   INDEX idx_user_date (user_id, start_date)
 ) ENGINE=InnoDB;
+
+
 
 -- 4. TẠO BẢNG 'friends'
 CREATE TABLE `friends` (
@@ -57,13 +60,6 @@ INSERT INTO `users` (`username`, `password`, `email`, `high_score`) VALUES
 ('player1', '123', 'player1@example.com', 150),
 ('player2', '123', 'pro@example.com', 250),
 ('noobMaster', '123', 'noob@example.com', 75);
-
--- 6. THÊM DỮ LIỆU MẪU CHO match_history
-INSERT INTO `match_history` (`user_id`, `opponent_id`, `score`, `result`) VALUES
-(1, 2, 150, 'win'),
-(1, 3, 120, 'lose'),
-(2, 1, 250, 'win'),
-(3, 1, 75, 'lose');
 
 -- 7. THÊM DỮ LIỆU MẪU CHO friends
 INSERT INTO `friends` (`user_id`, `friend_id`, `status`) VALUES

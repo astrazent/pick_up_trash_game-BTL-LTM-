@@ -5,13 +5,15 @@ public class MatchHistory {
     private String myName;
     private String opponentName;
     private String result; // Ví dụ: "WIN", "LOSS", "DRAW"
-    private String gameDate; // Ví dụ: "2025-10-21"
+    private String gameDate;
+    private String startDate;// Ví dụ: "2025-10-21"
 
     // Constructor
-    public MatchHistory(String myName, String opponentName, String result, String gameDate) {
+    public MatchHistory(String myName, String opponentName, String result,String startDate, String gameDate) {
         this.myName = myName;
         this.opponentName = opponentName;
         this.result = result;
+        this.startDate = startDate;
         this.gameDate = gameDate;
     }
 
@@ -31,4 +33,5 @@ public class MatchHistory {
     public String getGameDate() {
         return gameDate;
     }
+    public String getStartDate() {return startDate;}
 }
