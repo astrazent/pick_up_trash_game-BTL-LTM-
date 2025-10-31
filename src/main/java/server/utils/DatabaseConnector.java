@@ -354,12 +354,16 @@ public class DatabaseConnector {
                 "  o.username AS opponent_name, " +
                 "  h.result, " +
                 "  h.start_date, " +
-                "  h.end_date " +   // ✅ có dấu phẩy và cách
-                "FROM match_history h " + // ✅ có khoảng trắng đầu dòng
+                "  h.end_date " +
+                "FROM match_history h " +
                 "JOIN users u ON h.user_id = u.id " +
                 "JOIN users o ON h.opponent_id = o.id " +
                 "WHERE h.user_id = ? " +
+                "AND h.end_date IS NOT NULL " +
+                "AND h.result IS NOT NULL " +   // ✅ thêm khoảng trắng ở đây
                 "ORDER BY h.start_date DESC";
+
+
 
 
 
