@@ -1,6 +1,5 @@
 package client.network;
 
-import com.google.gson.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -16,13 +15,12 @@ import java.util.List;
 import java.util.Set;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 import client.Main;
-import com.google.gson.stream.JsonReader;
-import server.config.NetworkConfig;
-import client.data.MatchHistory;
 import client.data.UserProfile;
 import client.game.Player;
 import client.game.Trash;
@@ -31,18 +29,6 @@ import client.scenes.GameScene;
 import client.scenes.HistoryScene;
 import client.scenes.LeaderboardScene;
 import javafx.application.Platform;
-
-import java.io.*;
-import java.lang.reflect.Type;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import server.config.NetworkConfig;
 
 public class Client {
@@ -218,6 +204,12 @@ public class Client {
             case "LOGIN_FAILED":
                 String errorMessage = (messageParts.length > 1) ? messageParts[1] : "Tên đăng nhập hoặc mật khẩu không đúng.";
                 Main.getInstance().getLoginScene().showError(errorMessage);
+                break;
+
+            case "CANCEL_WAITING_SUCCESS":
+                Platform.runLater(() -> {
+                    Main.getInstance().showMenuScene();
+                });
                 break;
 
             case "START_GAME":

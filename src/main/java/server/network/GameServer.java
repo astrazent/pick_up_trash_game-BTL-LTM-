@@ -1,13 +1,19 @@
 package server.network;
 
-import server.config.NetworkConfig;
-import server.network.ClientTCPHandler;
-import server.network.GameRoom;
-import server.utils.ResourceLoader;
-
 import java.io.IOException;
-import java.net.*;
-import java.util.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import server.config.NetworkConfig;
+import server.utils.ResourceLoader;
 
 public class GameServer {
     private final int tcpPort;
@@ -115,6 +121,13 @@ public class GameServer {
             System.out.println("check room_player-is-ready: " + System.identityHashCode(newRoom));
             activeRooms.add(newRoom);
             new Thread(newRoom).start();
+        }
+    }
+
+    public synchronized void cancelWaiting(server.network.ClientTCPHandler player) {
+        if (waitingPlayers.remove(player)) {
+            System.out.println("Player " + player.getUsername() + " da huy cho doi. Con lai: " + waitingPlayers.size());
+            player.sendMessage("CANCEL_WAITING_SUCCESS");
         }
     }
 
