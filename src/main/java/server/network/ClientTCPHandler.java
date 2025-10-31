@@ -1,16 +1,6 @@
 package server.network;
 
 // Import các lớp cần thiết
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import server.data.MatchHistory;
-import server.data.UserProfile;
-import server.data.UserProfileServer;
-import server.network.GameRoom;
-import server.network.GameServer;
-import server.utils.DatabaseConnector;
-import server.utils.DatabaseResponse;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -20,6 +10,7 @@ import java.net.Socket;
 import java.util.List;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import server.data.MatchHistory;
 import server.data.UserProfile;
@@ -159,6 +150,15 @@ public class ClientTCPHandler implements Runnable {
                 } else if (readyParts.length == 2) {
                     server.playerIsReady(this, 2); // Mặc định là 2 người chơi
                 }
+                break;
+
+            case "CANCEL_WAITING":
+                // Message format: "CANCEL_WAITING;username"
+                if (username == null) {
+                    sendMessage("ERROR;Bạn cần đăng nhập trước.");
+                    return;
+                }
+                server.cancelWaiting(this);
                 break;
 
             case "SAVE_SCORE":
