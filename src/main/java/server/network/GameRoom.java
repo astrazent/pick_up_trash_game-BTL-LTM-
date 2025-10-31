@@ -13,13 +13,15 @@ class TrashState {
     public int id;
     public double x, y;
     public TrashType type;
+    public int imageIndex; // Index của ảnh trong danh sách ảnh của type đó
     public String heldBy = null;
 
-    public TrashState(int id, double x, double y, TrashType type) {
+    public TrashState(int id, double x, double y, TrashType type, int imageIndex) {
         this.id = id;
         this.x = x;
         this.y = y;
         this.type = type;
+        this.imageIndex = imageIndex;
     }
 }
 
@@ -181,11 +183,30 @@ public class GameRoom implements Runnable {
         TrashType type = TrashType.values()[(int) (Math.random() * TrashType.values().length)];
         double x = Math.random() * 750;
         double y = -50.0;
+        
+        // Random chọn index của ảnh
+        int imageIndex = (int) (Math.random() * getImageCountForType(type));
 
-        trashStates.put(id, new TrashState(id, x, y, type));
+        trashStates.put(id, new TrashState(id, x, y, type, imageIndex));
 
-        String message = String.format("TRASH_SPAWN;%d;%f;%f;%s", id, x, y, type.name());
+        String message = String.format("TRASH_SPAWN;%d;%f;%f;%s;%d", id, x, y, type.name(), imageIndex);
         broadcast(message);
+    }
+    
+    // Helper method để lấy số lượng ảnh cho mỗi type
+    private int getImageCountForType(TrashType type) {
+        switch (type) {
+            case METAL:
+                return 6; // metals có 6 ảnh
+            case ORGANIC:
+                return 8; // organics có 8 ảnh
+            case PAPER:
+                return 7; // papers có 7 ảnh
+            case PLASTIC:
+                return 7; // plastics có 7 ảnh
+            default:
+                return 1;
+        }
     }
 
     public void handleGameMessage(String message, String senderUsername) {
@@ -393,18 +414,14 @@ public class GameRoom implements Runnable {
                 ));
             }
 
-            // Gửi thông báo rác đã được thả
+            // Gửi thông báo rác đã được thả và xóa khỏi màn hình
             broadcast("TRASH_DROPPED;" + username + ";" + trashId);
-
-            // Reset rác
-            heldTrash.heldBy = null;
-            heldTrash.x = Math.random() * 750;
-            heldTrash.y = -50;
-            heldTrash.type = TrashType.values()[(int) (Math.random() * TrashType.values().length)];
-
-            broadcast(String.format("TRASH_RESET;%d;%f;%f;%s",
-                    heldTrash.id, heldTrash.x, heldTrash.y, heldTrash.type.name()
-            ));
+            
+            // Xóa rác khỏi danh sách
+            trashStates.remove(trashId);
+            
+            // Gửi message để client xóa rác
+            broadcast("TRASH_REMOVED;" + trashId);
         }
     }
 

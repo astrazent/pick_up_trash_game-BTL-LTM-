@@ -1,5 +1,6 @@
 package client.scenes;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -29,7 +30,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -85,7 +85,7 @@ public class GameScene {
         // --- UI Elements ---
         scoreLabel1 = new Label(p1Name + ": 0");
         scoreLabel1.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-        scoreLabel1.setTextFill(Color.WHITE);
+        scoreLabel1.setTextFill(Color.RED);
         scoreLabel1.setTranslateX(20);
         scoreLabel1.setTranslateY(10);
 
@@ -95,7 +95,8 @@ public class GameScene {
         timerLabel.layoutXProperty().bind(root.widthProperty().subtract(timerLabel.widthProperty()).divide(2));
         timerLabel.setTranslateY(10);
 
-        root.setStyle("-fx-background-color: #333;");
+        // Thêm background image
+        setupBackground();
 
         // --- Game Objects ---
         setupPlayers(playerCount, config, p1Name, p2Name);
@@ -110,25 +111,46 @@ public class GameScene {
         InputHandler inputHandler = new InputHandler(scene);
         gameLoop = new GameLoop(this, inputHandler, player1, player2, trashList, trashBins);
     }
+    
+    private void setupBackground() {
+        try {
+            File bgFile = new File("assets/images/backgrounds/bg.png");
+            if (bgFile.exists()) {
+                Image backgroundImage = new Image(bgFile.toURI().toString());
+                ImageView backgroundView = new ImageView(backgroundImage);
+                
+                GameConfig config = Main.getInstance().getGameConfig();
+                backgroundView.setFitWidth(config.window.width);
+                backgroundView.setFitHeight(config.window.height);
+                backgroundView.setPreserveRatio(false);
+                
+                // Đặt background ở dưới cùng
+                root.getChildren().add(0, backgroundView);
+            } else {
+                // Fallback về màu nền nếu không tìm thấy ảnh
+                root.setStyle("-fx-background-color: #87CEEB;"); // Sky blue
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi khi load background: " + e.getMessage());
+            root.setStyle("-fx-background-color: #87CEEB;");
+        }
+    }
 
     private void setupPlayers(int playerCount, GameConfig config, String p1Name, String p2Name) {
-        player1 = new Player(config.window.width / 2.0 - 50, config.window.height - config.player.height - 10, p1Name);
+        player1 = new Player(config.window.width / 2.0 - 50, config.window.height - config.player.height - 10, p1Name, 1);
         root.getChildren().add(player1.getView());
 
         double paddingRight = 50; // khoảng cách mong muốn từ lề phải
 
         if (playerCount == 2) {
             // Player 2
-            player2 = new Player(config.window.width / 2.0 + 50, config.window.height - config.player.height - 10, p2Name);
-            if (player2.getView() instanceof Rectangle) {
-                ((Rectangle) player2.getView()).setFill(Color.LIGHTGREEN);
-            }
+            player2 = new Player(config.window.width / 2.0 + 50, config.window.height - config.player.height - 10, p2Name, 2);
             root.getChildren().add(player2.getView());
 
             // Score label 2
             scoreLabel2 = new Label(p2Name + ": 0");
             scoreLabel2.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-            scoreLabel2.setTextFill(Color.WHITE);
+            scoreLabel2.setTextFill(Color.RED);
             scoreLabel2.setTranslateX(config.window.width - 150 - paddingRight); // thêm padding
             root.getChildren().add(scoreLabel2);
         } else {
@@ -207,14 +229,41 @@ public class GameScene {
         int binCount = types.length;
 
         double binWidth = (double) config.window.width / binCount;
-        double binHeight = 60;
+        double binHeight = 70; // Giảm chiều cao để thùng xuống thấp hơn
         double yPos = config.window.height - binHeight;
 
         for (int i = 0; i < binCount; i++) {
             double xPos = i * binWidth;
-            TrashBin bin = new TrashBin(xPos, yPos, binWidth, binHeight, types[i]);
+            TrashBin bin = new TrashBin(xPos, yPos, binWidth, binHeight - 20, types[i]); // -20 để chừa chỗ cho label
             trashBins.add(bin);
             root.getChildren().add(bin.getView());
+            
+            // Thêm label tên loại rác
+            Label binLabel = new Label(getBinTypeName(types[i]));
+            binLabel.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+            binLabel.setTextFill(Color.WHITE);
+            binLabel.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7); -fx-padding: 2 5 2 5; -fx-background-radius: 3;");
+            
+            // Căn giữa label trong mỗi bin
+            binLabel.setLayoutX(xPos + (binWidth / 2) - 30); // Ước tính width của label ~60px
+            binLabel.setLayoutY(config.window.height - 18);
+            
+            root.getChildren().add(binLabel);
+        }
+    }
+    
+    private String getBinTypeName(TrashType type) {
+        switch (type) {
+            case ORGANIC:
+                return "Hữu cơ";
+            case PLASTIC:
+                return "Nhựa";
+            case METAL:
+                return "Kim loại";
+            case PAPER:
+                return "Giấy";
+            default:
+                return type.name();
         }
     }
 
@@ -348,35 +397,35 @@ public class GameScene {
         
         // Container cho chat messages
         chatMessagesContainer = new VBox(5);
-        chatMessagesContainer.setStyle("-fx-background-color: rgba(40, 40, 40, 0.9); -fx-padding: 10;");
+        chatMessagesContainer.setStyle("-fx-background-color: rgba(40, 40, 40, 0.5); -fx-padding: 10;");
         
         // ScrollPane cho chat messages
         chatScrollPane = new ScrollPane(chatMessagesContainer);
         chatScrollPane.setFitToWidth(true);
         chatScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         chatScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        chatScrollPane.setStyle("-fx-background: rgba(40, 40, 40, 0.9); -fx-background-color: transparent;");
+        chatScrollPane.setStyle("-fx-background: rgba(40, 40, 40, 0.5); -fx-background-color: transparent;");
         chatScrollPane.setPrefHeight(200);
         
         // Input field cho chat
         chatInput = new TextField();
         chatInput.setPromptText("Nhập tin nhắn...");
         chatInput.setFocusTraversable(false);
-        chatInput.setStyle("-fx-background-color: #555; -fx-text-fill: white; -fx-prompt-text-fill: #999;");
+        chatInput.setStyle("-fx-background-color: rgba(85, 85, 85, 0.7); -fx-text-fill: white; -fx-prompt-text-fill: #999;");
         HBox.setHgrow(chatInput, Priority.ALWAYS);
         
         // Nút gửi
         chatSendButton = new Button("Gửi");
         chatSendButton.setFocusTraversable(false);
-        chatSendButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+        chatSendButton.setStyle("-fx-background-color: rgba(76, 175, 80, 0.8); -fx-text-fill: white;");
         
         // Container cho input và nút gửi
         HBox chatInputBox = new HBox(5, chatInput, chatSendButton);
         chatInputBox.setStyle("-fx-padding: 5;");
         
-        // Container chính cho chat
+        // Container chính cho chat với độ trong suốt cao hơn
         chatBox = new VBox(5, chatScrollPane, chatInputBox);
-        chatBox.setStyle("-fx-background-color: rgba(30, 30, 30, 0.95); -fx-background-radius: 10; -fx-padding: 5;");
+        chatBox.setStyle("-fx-background-color: rgba(30, 30, 30, 0.5); -fx-background-radius: 10; -fx-padding: 5;");
         chatBox.setPrefWidth(300);
         chatBox.setMaxHeight(250);
         chatBox.setLayoutX(10);
@@ -588,8 +637,8 @@ public class GameScene {
         }
     }
 
-    public void spawnTrash(int id, double x, double y, TrashType type) {
-        Trash newTrash = new Trash(id, x, y, type);
+    public void spawnTrash(int id, double x, double y, TrashType type, int imageIndex) {
+        Trash newTrash = new Trash(id, x, y, type, imageIndex);
         trashList.add(newTrash);
         root.getChildren().add(newTrash.getView());
     }
@@ -624,6 +673,16 @@ public class GameScene {
 
     public Trash getTrashById(int id) {
         return trashList.stream().filter(t -> t.getId() == id).findFirst().orElse(null);
+    }
+    
+    public void removeTrash(int id) {
+        Trash trash = getTrashById(id);
+        if (trash != null) {
+            // Xóa view khỏi root
+            root.getChildren().remove(trash.getView());
+            // Xóa khỏi danh sách
+            trashList.remove(trash);
+        }
     }
 
     public void updateTimer(int secondsLeft) {

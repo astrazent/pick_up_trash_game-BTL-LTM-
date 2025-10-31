@@ -215,13 +215,14 @@ public class Client {
                 }
                 break;
 
-            case "TRASH_SPAWN": // Server: TRASH_SPAWN;id;x;y;type
-                if (game != null && messageParts.length == 5) {
+            case "TRASH_SPAWN": // Server: TRASH_SPAWN;id;x;y;type;imageIndex
+                if (game != null && messageParts.length == 6) {
                     int id = Integer.parseInt(messageParts[1]);
                     double x = Double.parseDouble(messageParts[2]);
                     double y = Double.parseDouble(messageParts[3]);
                     TrashType type = TrashType.valueOf(messageParts[4]);
-                    game.spawnTrash(id, x, y, type);
+                    int imageIndex = Integer.parseInt(messageParts[5]);
+                    game.spawnTrash(id, x, y, type, imageIndex);
                 }
                 break;
 
@@ -246,6 +247,14 @@ public class Client {
                     }
                 }
                 break;
+            
+            case "TRASH_REMOVED": // Server: TRASH_REMOVED;trashId
+                if (game != null && messageParts.length == 2) {
+                    int trashId = Integer.parseInt(messageParts[1]);
+                    game.removeTrash(trashId);
+                }
+                break;
+                
             case "WRONG_CLASSIFY":
                 if (game != null && messageParts.length == 2) {
                     String playerName = messageParts[1];
@@ -254,15 +263,16 @@ public class Client {
                 }
                 break;
 
-            case "TRASH_RESET": // Server: TRASH_RESET;id;newX;newY;newType
-                if (game != null && messageParts.length == 5) {
+            case "TRASH_RESET": // Server: TRASH_RESET;id;newX;newY;newType;imageIndex
+                if (game != null && messageParts.length == 6) {
                     int id = Integer.parseInt(messageParts[1]);
                     double x = Double.parseDouble(messageParts[2]);
                     double y = Double.parseDouble(messageParts[3]);
                     TrashType type = TrashType.valueOf(messageParts[4]);
+                    int imageIndex = Integer.parseInt(messageParts[5]);
                     Trash trash = game.getTrashById(id);
                     if (trash != null) {
-                        trash.updateState(x, y, type);
+                        trash.updateState(x, y, type, imageIndex);
                     }
                 }
                 break;
