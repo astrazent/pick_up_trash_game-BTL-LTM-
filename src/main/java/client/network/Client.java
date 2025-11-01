@@ -510,6 +510,10 @@ public class Client {
                     System.err.println("Loi phan tich JSON ALL_USERS_DATA: " + e.getMessage());
                 }
                 break;
+
+            case "FORCE_SURRENDER":
+                requestSurrender();
+                break;
         }
     }
     // MỚI: Hàm để gửi yêu cầu tạm dừng game đến server

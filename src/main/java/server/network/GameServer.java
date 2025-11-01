@@ -119,7 +119,6 @@ public class GameServer {
     }
 
     public void removeClient(server.network.ClientTCPHandler handler) {
-        handler.cleanup();
         // Dọn tài nguyên socket
         handler.cleanup();
 
@@ -180,6 +179,14 @@ public class GameServer {
             handler.sendMessage(message);
         }
     }
+
+    public synchronized void changeClientUsername(ClientTCPHandler handler, String newUsername) {
+        if (handler != null) {
+            handler.setUsername(newUsername);
+            broadcastOnlineList();
+        }
+    }
+
 
     public void removeRoom(GameRoom room) {
         activeRooms.remove(room);

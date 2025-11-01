@@ -47,6 +47,7 @@ public class ClientTCPHandler implements Runnable {
     public void setUdpAddress(InetSocketAddress address) { this.udpAddress = address; }
     public InetSocketAddress getUdpAddress() { return this.udpAddress; }
     public String getUsername() { return this.username; }
+    public void setUsername(String username) { this.username = username; }
     public UserProfileServer getUserProfile() { return this.userProfile; } // Getter cho profile
 
     @Override
@@ -63,6 +64,13 @@ public class ClientTCPHandler implements Runnable {
         } catch (IOException e) {
             System.out.println("Client đã ngắt kết nối: " + (username != null ? username : clientSocket.getInetAddress()));
         } finally {
+            if (currentRoom != null) {
+                try {
+                    sendMessage("FORCE_SURRENDER");
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
             server.removeClient(this); // Báo cho server biết client đã rời
             server.broadcastOnlineList();
             try {
@@ -129,6 +137,12 @@ public class ClientTCPHandler implements Runnable {
                     DatabaseResponse<UserProfileServer> response = DatabaseConnector.validateUser(user, pass);
 
                     if (response.isSuccess()) {
+                        // Kiểm tra nếu người dùng đã đăng nhập ở client khác
+                        ClientTCPHandler existingHandler = server.findHandlerByUsername(user);
+                        if (existingHandler != null) {
+                            sendMessage("LOGIN_FAILED;Người dùng này đã đăng nhập ở thiết bị khác.");
+                            break; // Ngắt, không xử lý đăng nhập tiếp
+                        }
                         this.userProfile = response.getData();
                         this.username = this.userProfile.getUsername();
 
@@ -145,6 +159,17 @@ public class ClientTCPHandler implements Runnable {
                     }
                 }
                 break;
+
+            case "LOGOUT":
+                String[] logoutParts = message.split(";");
+                if (logoutParts[1]==null){
+                    sendMessage("Khong nhan duoc Username cua nguoi dang xuat");
+                    return;
+                }
+                else{
+                    server.changeClientUsername(this, null);
+                    server.broadcastOnlineList();
+                }
 
             case "READY":
                 // Message format: "READY;username;playerCount" hoặc "READY;username"

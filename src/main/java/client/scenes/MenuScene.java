@@ -90,7 +90,7 @@ public class MenuScene {
         logoutBtn.setOnAction(e -> {
             // Xóa thông tin người dùng, trở lại màn hình login
             System.out.println("Người dùng đăng xuất: " + client.getUsername());
-            client.setUsername(null); // Nếu bạn có setter
+            client.sendMessage("LOGOUT;"+client.getUsername());
             Main.getInstance().showLoginScene();
         });
 
@@ -114,7 +114,6 @@ public class MenuScene {
         scoreColumn.setCellValueFactory(new PropertyValueFactory<>("score"));
         scoreColumn.setPrefWidth(80);
 
-        // Căn giữa nội dung của cột Status
         // Hiển thị chấm tròn thay vì chữ Online/Offline
         statusColumn.setCellFactory(column -> new javafx.scene.control.TableCell<UserProfile, String>() {
             private final javafx.scene.shape.Circle statusCircle = new javafx.scene.shape.Circle(6); // kích thước chấm tròn
@@ -140,7 +139,6 @@ public class MenuScene {
             }
         });
 
-
         // Căn giữa nội dung của cột Score
         scoreColumn.setCellFactory(column -> new javafx.scene.control.TableCell<UserProfile, Integer>() {
             @Override
@@ -156,8 +154,14 @@ public class MenuScene {
         });
 
         onlineTable.getColumns().addAll(usernameColumn, statusColumn, scoreColumn);
+
+        double totalWidth = 0;
+        for (TableColumn<?, ?> col : onlineTable.getColumns()) {
+            totalWidth += col.getPrefWidth();
+        }
+
+        onlineTable.setMaxWidth(totalWidth + 2);
         onlineTable.setPrefHeight(150);
-        onlineTable.setMaxWidth(262);
         onlineTable.setPlaceholder(new Text("No players available"));
 
         layout.getChildren().addAll(title , userInfo, logoutBtn, onePlayerBtn, twoPlayersBtn, leaderboardBtn, historyBtn, onlineTable);

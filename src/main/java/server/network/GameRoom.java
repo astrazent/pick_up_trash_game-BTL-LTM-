@@ -154,7 +154,7 @@ public class GameRoom implements Runnable {
             }
 
             // Kiểm tra nếu game kết thúc do đầu hàng, không cần so sánh điểm
-            if (gameEndedBySurrender) {
+            if (gameEndedBySurrender || !isRunning) {
                 System.out.println("SERVER: Game đã kết thúc do đầu hàng, bỏ qua so sánh điểm.");
                 return;
             }
@@ -532,8 +532,23 @@ public class GameRoom implements Runnable {
                 return;
             }
 
+            // Lấy điểm hiện tại của hai người chơi
+            int score1 = playerScores.getOrDefault(player1.getUsername(), 0);
+            int score2 = 0;
+
+            if (player2 != null) {
+                score2 = playerScores.getOrDefault(player2.getUsername(), 0);
+            } else {
+                // 1P kết thúc
+                System.out.println("SERVER: [Player: " + player1.getUsername() + "] complete 1P match");
+                DatabaseResponse<Void> res = DatabaseConnector.updateScoreAfterMatch(matchId1, player1.getUsername(), "win");
+                System.out.println(res.getMessage());
+                broadcast("GAME_OVER;" + player1.getUsername());
+                return;
+            }
+
             // Gửi thông báo kết thúc game cho người còn lại
-            broadcast("GAME_OVER;" + winner + ";WIN_BY_DISCONNECT");
+            broadcast("GAME_OVER;" + winner + ";WIN;" + score1 + ";" + score2);
             System.out.println("✅ Ghi kết quả: " + winner + " thắng do đối thủ rời phòng.");
 
             // Reset currentRoom để tránh lỗi khi vào phòng mới

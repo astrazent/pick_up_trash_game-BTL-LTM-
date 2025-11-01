@@ -175,7 +175,7 @@ public class DatabaseConnector {
         System.out.println("  → opponentName: " + opponentName);
 
         String findUserSql = "SELECT id FROM users WHERE username = ?";
-        String insertHistorySql = "INSERT INTO match_history (user_id, opponent_id, start_date) VALUES (?, ?, NOW())";
+        String insertHistorySql = "INSERT INTO match_history (user_id, opponent_id) VALUES (?, ?)";
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
