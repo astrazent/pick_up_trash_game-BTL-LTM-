@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Set;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
@@ -30,18 +32,6 @@ import client.game.Player;
 import client.game.Trash;
 import client.game.TrashType;
 import javafx.application.Platform;
-
-import java.io.*;
-import java.lang.reflect.Type;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import server.config.NetworkConfig;
 
 public class Client {
@@ -219,6 +209,12 @@ public class Client {
                 Main.getInstance().getLoginScene().showError(errorMessage);
                 break;
 
+            case "CANCEL_WAITING_SUCCESS":
+                Platform.runLater(() -> {
+                    Main.getInstance().showMenuScene();
+                });
+                break;
+
             case "START_GAME":
                 if (messageParts.length == 3) {
                     // 2 player
@@ -281,13 +277,14 @@ public class Client {
                 }
                 break;
 
-            case "TRASH_SPAWN": // Server: TRASH_SPAWN;id;x;y;type
-                if (game != null && messageParts.length == 5) {
+            case "TRASH_SPAWN": // Server: TRASH_SPAWN;id;x;y;type;imageIndex
+                if (game != null && messageParts.length == 6) {
                     int id = Integer.parseInt(messageParts[1]);
                     double x = Double.parseDouble(messageParts[2]);
                     double y = Double.parseDouble(messageParts[3]);
                     TrashType type = TrashType.valueOf(messageParts[4]);
-                    game.spawnTrash(id, x, y, type);
+                    int imageIndex = Integer.parseInt(messageParts[5]);
+                    game.spawnTrash(id, x, y, type, imageIndex);
                 }
                 break;
 
@@ -312,6 +309,14 @@ public class Client {
                     }
                 }
                 break;
+
+            case "TRASH_REMOVED": // Server: TRASH_REMOVED;trashId
+                if (game != null && messageParts.length == 2) {
+                    int trashId = Integer.parseInt(messageParts[1]);
+                    game.removeTrash(trashId);
+                }
+                break;
+
             case "WRONG_CLASSIFY":
                 if (game != null && messageParts.length == 2) {
                     String playerName = messageParts[1];
@@ -320,15 +325,16 @@ public class Client {
                 }
                 break;
 
-            case "TRASH_RESET": // Server: TRASH_RESET;id;newX;newY;newType
-                if (game != null && messageParts.length == 5) {
+            case "TRASH_RESET": // Server: TRASH_RESET;id;newX;newY;newType;imageIndex
+                if (game != null && messageParts.length == 6) {
                     int id = Integer.parseInt(messageParts[1]);
                     double x = Double.parseDouble(messageParts[2]);
                     double y = Double.parseDouble(messageParts[3]);
                     TrashType type = TrashType.valueOf(messageParts[4]);
+                    int imageIndex = Integer.parseInt(messageParts[5]);
                     Trash trash = game.getTrashById(id);
                     if (trash != null) {
-                        trash.updateState(x, y, type);
+                        trash.updateState(x, y, type, imageIndex);
                     }
                 }
                 break;

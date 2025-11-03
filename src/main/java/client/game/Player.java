@@ -1,7 +1,11 @@
 package client.game;
 
+import java.io.File;
+
 import client.Main;
 import client.config.GameConfig;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
@@ -10,22 +14,54 @@ public class Player extends GameObject {
     private int score = 0;
     private String username;
     private Trash heldTrash = null;
+    private int playerNumber; // 1 hoặc 2
 
-    public Player(double x, double y, String username) {
-        super(x, y, 0, 0);
+    public Player(double x, double y, String username, int playerNumber) {
+        super(x, y, 0, 0, true); // Không tạo Rectangle mặc định
 
         GameConfig.PlayerConfig config = Main.getInstance().getGameConfig().player;
         this.width = config.width;
         this.height = config.height;
         this.speed = config.speed;
         this.username = username;
+        this.playerNumber = playerNumber;
 
-        if (this.view instanceof Rectangle) {
-            Rectangle playerRect = (Rectangle) this.view;
-            playerRect.setWidth(this.width);
-            playerRect.setHeight(this.height);
-            playerRect.setFill(Color.ROYALBLUE);
+        // Tạo ImageView cho player
+        createPlayerImage();
+    }
+    
+    private void createPlayerImage() {
+        try {
+            String imagePath = "assets/images/players/player" + playerNumber + ".png";
+            File imageFile = new File(imagePath);
+            
+            if (imageFile.exists()) {
+                Image playerImage = new Image(imageFile.toURI().toString());
+                ImageView imageView = new ImageView(playerImage);
+                imageView.setFitWidth(width);
+                imageView.setFitHeight(height);
+                imageView.setPreserveRatio(true);
+                this.view = imageView;
+                render();
+            } else {
+                // Fallback về Rectangle nếu không tìm thấy ảnh
+                createRectangleFallback();
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi khi load ảnh player: " + e.getMessage());
+            createRectangleFallback();
         }
+    }
+    
+    private void createRectangleFallback() {
+        Rectangle playerRect = new Rectangle(0, 0, width, height);
+        if (playerNumber == 1) {
+            playerRect.setFill(Color.ROYALBLUE);
+        } else {
+            playerRect.setFill(Color.LIGHTGREEN);
+        }
+        this.view = playerRect;
+        render();
     }
 
     @Override

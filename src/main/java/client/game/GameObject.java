@@ -21,6 +21,15 @@ public abstract class GameObject {
         // Đặt vị trí ban đầu bằng cách dịch chuyển nó
         render();
     }
+    
+    // Constructor không tạo view mặc định (cho các lớp con tự tạo view)
+    protected GameObject(double x, double y, double width, double height, boolean noDefaultView) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        // Không tạo view, lớp con sẽ tự tạo
+    }
 
     public abstract void update();
 
