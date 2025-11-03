@@ -246,7 +246,6 @@ public class MenuScene {
 
                 // Xử lý nút trong popup
                 acceptBtn.setOnAction(e -> {
-                    System.out.println("Bạn đã gửi lời mời tới: " + clickedUsername);
                     // Đánh dấu người chơi đang chờ phản hồi
                     Client.getInstance().sendMessage("WAITING_ON");
                     Client.getInstance().sendMessage("SET_OPPONENT_NAME;"+clickedUsername);
@@ -292,7 +291,7 @@ public class MenuScene {
             popupContent.setAlignment(Pos.CENTER);
 
             javafx.scene.text.Text text = new javafx.scene.text.Text(
-                    "Bạn nhận được lời thách đấu từ người chơi " + senderUsername
+                    "Bạn nhận được lời thách đấu từ " + senderUsername
             );
             text.setFont(Font.font("Segoe UI", 16));
             text.setFill(Color.web("#2a9d8f"));
@@ -319,7 +318,6 @@ public class MenuScene {
 
             // Khi Accept hoặc Decline -> đóng popup + bật lại logout
             acceptBtn.setOnAction(e -> {
-                System.out.println("Chấp nhận lời thách đấu từ: " + senderUsername);
                 Client.getInstance().sendMessage("ACCEPT_CHALLENGE;" + senderUsername);
                 popup.hide();
                 activePopup = null;
@@ -328,7 +326,6 @@ public class MenuScene {
             });
 
             declineBtn.setOnAction(e -> {
-                System.out.println("Từ chối lời thách đấu từ: " + senderUsername);
                 Client.getInstance().sendMessage("DECLINE_CHALLENGE;" + senderUsername);
                 popup.hide();
                 activePopup = null;

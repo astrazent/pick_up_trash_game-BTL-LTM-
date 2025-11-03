@@ -103,7 +103,7 @@ public class ClientTCPHandler implements Runnable {
             System.err.println("Lỗi khi đóng socket cho " + username + ": " + e.getMessage());
         }
 
-        System.out.println("→ Đã cleanup xong cho " + (username != null ? username : "UNKNOWN"));
+        System.out.println("Đã cleanup xong cho " + (username != null ? username : "UNKNOWN"));
     }
 
     public boolean isWaiting() {

@@ -125,7 +125,7 @@ public class Client {
                     HistoryScene scene = Main.getInstance().getActiveHistoryScene();
                     if (scene != null) {
                         scene.updateHistory(historyData);
-                        System.out.println("✅ Đã cập nhật danh sách lịch sử đấu (" + historyData.size() + " trận)");
+                        System.out.println("Đã cập nhật danh sách lịch sử đấu (" + historyData.size() + " trận)");
                     }
                 });
             }
@@ -138,7 +138,7 @@ public class Client {
                     LeaderboardScene scene = Main.getInstance().getActiveLeaderboardScene();
                     if (scene != null) {
                         scene.updateLeaderboard(leaderboardData);
-                        System.out.println("🏆 Đã cập nhật bảng xếp hạng (" + leaderboardData.size() + " người chơi)");
+                        System.out.println("Đã cập nhật bảng xếp hạng (" + leaderboardData.size() + " người chơi)");
                     }
                 });
             }
@@ -147,7 +147,7 @@ public class Client {
             }
 
         } catch (Exception e) {
-            System.err.println("⚠️ Lỗi parse JSON từ server: " + e.getMessage());
+            System.err.println("Lỗi parse JSON từ server: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -515,7 +515,6 @@ public class Client {
                 break;
 
             case "RECEIVE_CHALLENGE":
-                System.out.println("Nhan duoc loi thach dau tu nguoi choi: "+messageParts[1]);
                 sendMessage("SET_CHALLENGER_NAME;"+messageParts[1]);
                 MenuScene.showChallengePopup(messageParts[1]);
                 break;
@@ -523,22 +522,15 @@ public class Client {
             case "CHALLENGE_DECLINED":
                 Main.getInstance().showMenuScene();
                 MenuScene.showChallengeDeclinedPopup();
-                System.out.println("Doi thu da tu choi loi thach dau");
                 break;
 
             case "AUTO_DECLINE":
                 WaitingAcceptanceScene.showAutoDeclinePopup();
-                System.out.println("Nguoi choi nay dang thach dau hoac nhan loi thach dau. Ko the gui loi thach dau!");
                 break;
 
             case "OPPONENT_OFFLINE":
                 Main.getInstance().showMenuScene();
                 MenuScene.showOpponentOfflinePopup();
-                System.out.println("Doi thu da ngat ket noi!");
-                break;
-
-            case "CHALLENGER_OFFLINE":
-                System.out.println("Doi thu da ngat ket noi!");
                 break;
         }
     }

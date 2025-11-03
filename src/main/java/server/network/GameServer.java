@@ -142,7 +142,6 @@ public class GameServer {
 
         // Nếu đối thủ đang chờ phản hồi một thách đấu khác
         if (opponentHandler.isWaiting()) {
-            System.out.println("[SERVER] " + opponent + " đang chờ phản hồi -> tự động từ chối thách đấu của " + senderUsername);
             challengerHandler.setWaiting(false);
             challengerHandler.setOpponentName(null);
             challengerHandler.sendMessage("AUTO_DECLINE;" + opponent);
@@ -181,7 +180,6 @@ public class GameServer {
                 ClientTCPHandler opponentHandler = findHandlerByUsername(opponentName);
                 opponentHandler.setWaiting(false);
                 opponentHandler.setChallengerName(null);
-                opponentHandler.sendMessage("CHALLENGER_OFFLINE");
             }
         }
 
