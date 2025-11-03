@@ -190,7 +190,7 @@ public class WaitingScene {
         }
 
         root.getChildren().add(layout);
-        scene = new Scene(root, 550, 650);
+        scene = new Scene(root, 1280, 720);
     }
 
     public Scene getScene() {

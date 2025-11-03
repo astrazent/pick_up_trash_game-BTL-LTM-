@@ -1,14 +1,12 @@
 package client.game;
 
-import client.Main;
-import client.config.GameConfig;
+import java.util.List;
+
 import client.input.InputHandler;
 import client.network.Client;
 import client.scenes.GameScene;
 import javafx.animation.AnimationTimer;
 import javafx.scene.input.KeyCode;
-
-import java.util.List;
 
 public class GameLoop extends AnimationTimer {
 
@@ -19,8 +17,6 @@ public class GameLoop extends AnimationTimer {
     private final List<Trash> trashList;
     private final List<TrashBin> trashBins;
     private boolean isPaused = false;
-    private final double screenWidth;
-    private final double screenHeight;
 
     public GameLoop(GameScene gameScene, InputHandler inputHandler, Player player1, Player player2, List<Trash> trashList, List<TrashBin> trashBins) {
         this.gameScene = gameScene;
@@ -29,10 +25,6 @@ public class GameLoop extends AnimationTimer {
         this.player2 = player2;
         this.trashList = trashList;
         this.trashBins = trashBins;
-
-        GameConfig config = Main.getInstance().getGameConfig();
-        this.screenWidth = config.window.width;
-        this.screenHeight = config.window.height;
     }
 
     @Override
@@ -72,6 +64,10 @@ public class GameLoop extends AnimationTimer {
     }
 
     private void handlePlayerMovement() {
+        // Lấy kích thước động từ scene
+        double screenWidth = gameScene.getScene().getWidth();
+        double screenHeight = gameScene.getScene().getHeight();
+        
         if (inputHandler.isKeyPressed(KeyCode.A) || inputHandler.isKeyPressed(KeyCode.LEFT)) {
             player1.moveLeft();
         }
@@ -96,14 +92,12 @@ public class GameLoop extends AnimationTimer {
                 }
             }
         } else if (inputHandler.isKeyPressed(KeyCode.SPACE)) {
-            boolean onBin = false;
             for (TrashBin bin : trashBins) {
                 if (player1.checkCollision(bin)) {
                     String message = String.format("DROP_TRASH;%s;%s", player1.getUsername(), bin.getBinType().name());
                     System.out.println(Client.getInstance().getUsername());
                     System.out.println("check gameLoop: "+message);
                     Client.getInstance().sendMessage(message);
-                    onBin = true;
                     break;
                 }
             }

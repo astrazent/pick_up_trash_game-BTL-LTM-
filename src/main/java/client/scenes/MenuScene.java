@@ -75,9 +75,8 @@ public class MenuScene {
         // --- HIỂN THỊ THÔNG TIN NGƯỜI DÙNG ---
         Client client = Client.getInstance();
         String username = client.getUsername();
-        int highScore = client.getHighScore();
 
-        HBox userInfoBox = new HBox(10);
+        VBox userInfoBox = new VBox(5);
         userInfoBox.setAlignment(Pos.CENTER);
         userInfoBox.setPadding(new Insets(15));
         userInfoBox.setStyle(
@@ -86,18 +85,15 @@ public class MenuScene {
             "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 5, 0, 0, 2);"
         );
 
+        Text welcomeText = new Text("Chào mừng");
+        welcomeText.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
+        welcomeText.setFill(Color.web("#ecf0f1"));
+
         Text userInfo = new Text("👤 " + username);
-        userInfo.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        userInfo.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
         userInfo.setFill(Color.WHITE);
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Text scoreInfo = new Text("🏆 " + highScore);
-        scoreInfo.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
-        scoreInfo.setFill(Color.web("#f39c12"));
-
-        userInfoBox.getChildren().addAll(userInfo, spacer, scoreInfo);
+        userInfoBox.getChildren().addAll(welcomeText, userInfo);
 
         // Khoảng cách
         Region spacer1 = new Region();
@@ -244,7 +240,7 @@ public class MenuScene {
         );
 
         root.getChildren().add(layout);
-        scene = new Scene(root, 600, 750);
+        scene = new Scene(root, 1280, 720);
     }
 
     private Button createStyledButton(String text, String color1, String color2) {

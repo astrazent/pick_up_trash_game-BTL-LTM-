@@ -1,13 +1,19 @@
 package client;
 
 import client.config.GameConfig;
-import server.config.NetworkConfig;
 import client.network.Client;
-import client.scenes.*;
+import client.scenes.GameScene;
+import client.scenes.HistoryScene;
+import client.scenes.LeaderboardScene;
+import client.scenes.LoginScene;
+import client.scenes.MenuScene;
+import client.scenes.WaitingAcceptanceScene;
+import client.scenes.WaitingScene;
 import client.utils.ResourceLoader;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import server.config.NetworkConfig;
 
 public class Main extends Application {
 
@@ -75,6 +81,11 @@ public class Main extends Application {
 
         // 5. Cấu hình cửa sổ game
         primaryStage.setTitle(gameConfig.window.title);
+        
+        // Cho phép fullscreen và maximized
+        primaryStage.setMaximized(true);
+        primaryStage.setResizable(true);
+        primaryStage.setFullScreenExitHint(""); // Ẩn thông báo thoát fullscreen
 
         // 6. Hiển thị màn hình đầu tiên (Login)
         showLoginScene();

@@ -90,7 +90,7 @@ public class Player extends GameObject {
 
     public void moveUp() {
         y -= speed;
-        double topBoundary = Main.getInstance().getGameConfig().window.height / 2.0;
+        double topBoundary = 0;
         if (y < topBoundary) {
             y = topBoundary;
         }
