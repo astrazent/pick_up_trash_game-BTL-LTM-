@@ -154,7 +154,7 @@ public class LoginScene {
         );
 
         root.getChildren().add(loginBox);
-        scene = new Scene(root, 600, 500);
+        scene = new Scene(root, 1280, 720);
     }
 
     public Scene getScene() {

@@ -49,4 +49,17 @@ public abstract class GameObject {
 
     public double getX() { return x; }
     public double getY() { return y; }
+    public double getWidth() { return width; }
+    public double getHeight() { return height; }
+    
+    // Phương thức để set vị trí (public để có thể truy cập từ bên ngoài)
+    public void setX(double x) {
+        this.x = x;
+        render();
+    }
+    
+    public void setY(double y) {
+        this.y = y;
+        render();
+    }
 }

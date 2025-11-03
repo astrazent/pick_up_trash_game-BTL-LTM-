@@ -67,6 +67,27 @@ public class TrashBin extends GameObject {
     public void update() {
         // Thùng rác đứng yên, không cần update logic
     }
+    
+    // Phương thức để cập nhật vị trí và kích thước khi resize
+    public void updatePosition(double newX, double newY, double newWidth, double newHeight) {
+        this.x = newX;
+        this.y = newY;
+        this.width = newWidth;
+        this.height = newHeight;
+        
+        // Cập nhật kích thước của view
+        if (view instanceof ImageView) {
+            ImageView imageView = (ImageView) view;
+            imageView.setFitWidth(newWidth);
+            imageView.setFitHeight(newHeight);
+        } else if (view instanceof Rectangle) {
+            Rectangle rect = (Rectangle) view;
+            rect.setWidth(newWidth);
+            rect.setHeight(newHeight);
+        }
+        
+        render();
+    }
 
     public TrashType getBinType() {
         return binType;

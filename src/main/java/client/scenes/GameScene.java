@@ -84,16 +84,18 @@ public class GameScene {
 
         // --- UI Elements ---
         scoreLabel1 = new Label(p1Name + ": 0");
-        scoreLabel1.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        scoreLabel1.setFont(Font.font("Arial", FontWeight.BOLD, 22));
         scoreLabel1.setTextFill(Color.RED);
-        scoreLabel1.setTranslateX(20);
-        scoreLabel1.setTranslateY(10);
+        scoreLabel1.setStyle("-fx-effect: dropshadow(gaussian, black, 2, 1, 1, 1);");
+        scoreLabel1.setTranslateX(30);
+        scoreLabel1.setTranslateY(20);
 
         timerLabel = new Label("02:00");
-        timerLabel.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        timerLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
         timerLabel.setTextFill(Color.WHITE);
+        timerLabel.setStyle("-fx-effect: dropshadow(gaussian, black, 3, 1, 2, 2);");
         timerLabel.layoutXProperty().bind(root.widthProperty().subtract(timerLabel.widthProperty()).divide(2));
-        timerLabel.setTranslateY(10);
+        timerLabel.setTranslateY(20);
 
         // Thêm background image
         setupBackground();
@@ -105,11 +107,39 @@ public class GameScene {
         setupChatUI(config); // Thiết lập UI chat
 
         root.getChildren().addAll(scoreLabel1, timerLabel, settingsButton, pauseMenu);
-
+        
+        // Làm cho scene responsive khi thay đổi kích thước cửa sổ
+        setupResponsiveLayout(playerCount);
 
         // --- Input and GameLoop ---
         InputHandler inputHandler = new InputHandler(scene);
         gameLoop = new GameLoop(this, inputHandler, player1, player2, trashList, trashBins);
+    }
+    
+    // Thiết lập responsive layout
+    private void setupResponsiveLayout(int playerCount) {
+        // Listener để điều chỉnh giới hạn khi resize
+        scene.widthProperty().addListener((obs, oldVal, newVal) -> {
+            // Giới hạn player trong màn hình mới
+            double newWidth = newVal.doubleValue();
+            if (player1 != null && player1.getX() + player1.getWidth() > newWidth) {
+                player1.setX(newWidth - player1.getWidth());
+            }
+            if (player2 != null && player2.getX() + player2.getWidth() > newWidth) {
+                player2.setX(newWidth - player2.getWidth());
+            }
+        });
+        
+        scene.heightProperty().addListener((obs, oldVal, newVal) -> {
+            // Giới hạn player trong màn hình mới
+            double newHeight = newVal.doubleValue();
+            if (player1 != null && player1.getY() + player1.getHeight() > newHeight) {
+                player1.setY(newHeight - player1.getHeight());
+            }
+            if (player2 != null && player2.getY() + player2.getHeight() > newHeight) {
+                player2.setY(newHeight - player2.getHeight());
+            }
+        });
     }
     
     private void setupBackground() {
@@ -119,9 +149,9 @@ public class GameScene {
                 Image backgroundImage = new Image(bgFile.toURI().toString());
                 ImageView backgroundView = new ImageView(backgroundImage);
                 
-                GameConfig config = Main.getInstance().getGameConfig();
-                backgroundView.setFitWidth(config.window.width);
-                backgroundView.setFitHeight(config.window.height);
+                // Bind kích thước background với scene để tự động scale
+                backgroundView.fitWidthProperty().bind(scene.widthProperty());
+                backgroundView.fitHeightProperty().bind(scene.heightProperty());
                 backgroundView.setPreserveRatio(false);
                 
                 // Đặt background ở dưới cùng
@@ -137,21 +167,21 @@ public class GameScene {
     }
 
     private void setupPlayers(int playerCount, GameConfig config, String p1Name, String p2Name) {
-        player1 = new Player(config.window.width / 2.0 - 50, config.window.height - config.player.height - 10, p1Name, 1);
+        player1 = new Player(config.window.width / 2.0 - 80, config.window.height - config.player.height - 20, p1Name, 1);
         root.getChildren().add(player1.getView());
-
-        double paddingRight = 50; // khoảng cách mong muốn từ lề phải
 
         if (playerCount == 2) {
             // Player 2
-            player2 = new Player(config.window.width / 2.0 + 50, config.window.height - config.player.height - 10, p2Name, 2);
+            player2 = new Player(config.window.width / 2.0 + 80, config.window.height - config.player.height - 20, p2Name, 2);
             root.getChildren().add(player2.getView());
 
-            // Score label 2
+            // Score label 2 - Bind vị trí với kích thước scene
             scoreLabel2 = new Label(p2Name + ": 0");
-            scoreLabel2.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+            scoreLabel2.setFont(Font.font("Arial", FontWeight.BOLD, 22));
             scoreLabel2.setTextFill(Color.RED);
-            scoreLabel2.setTranslateX(config.window.width - 150 - paddingRight); // thêm padding
+            scoreLabel2.setStyle("-fx-effect: dropshadow(gaussian, black, 2, 1, 1, 1);");
+            scoreLabel2.translateXProperty().bind(scene.widthProperty().subtract(200));
+            scoreLabel2.setTranslateY(20);
             root.getChildren().add(scoreLabel2);
         } else {
             // --- MỚI: Thiết lập hiển thị mạng cho chế độ 1 người chơi ---
@@ -161,20 +191,20 @@ public class GameScene {
 
     // --- MỚI: Phương thức thiết lập hiển thị mạng (trái tim) ---
     private void setupLivesDisplay(GameConfig config) {
-        heartsBox = new HBox(5); // 5 là khoảng cách giữa các trái tim
+        heartsBox = new HBox(10); // 10 là khoảng cách giữa các trái tim
         heartsBox.setAlignment(Pos.CENTER);
-        double heartsBoxX = config.window.width - 215; // Vị trí tương tự scoreLabel2
-        double heartsBoxY = 10;
-        heartsBox.setLayoutX(heartsBoxX);
-        heartsBox.setLayoutY(heartsBoxY);
+        // Bind vị trí với kích thước scene
+        heartsBox.layoutXProperty().bind(scene.widthProperty().subtract(250));
+        heartsBox.setLayoutY(20);
 
         try {
             // Thay "resources/heart.png" bằng đường dẫn chính xác đến file ảnh của bạn
             Image heartImage = new Image(new FileInputStream("src/main/resources/images/heart.png"));
             for (int i = 0; i < 3; i++) { // Luôn tạo 3 trái tim
                 ImageView heartView = new ImageView(heartImage);
-                heartView.setFitHeight(30);
-                heartView.setFitWidth(30);
+                heartView.setFitHeight(40);
+                heartView.setFitWidth(40);
+                heartView.setStyle("-fx-effect: dropshadow(gaussian, black, 2, 1, 1, 1);");
                 heartImageViews.add(heartView);
                 heartsBox.getChildren().add(heartView);
             }
@@ -182,8 +212,9 @@ public class GameScene {
             System.err.println("Không tìm thấy file ảnh trái tim! 'resources/heart.png'");
             // Thay thế bằng text nếu không có ảnh
             Label livesLabel = new Label("Mạng: " + playerLives);
-            livesLabel.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+            livesLabel.setFont(Font.font("Arial", FontWeight.BOLD, 22));
             livesLabel.setTextFill(Color.RED);
+            livesLabel.setStyle("-fx-effect: dropshadow(gaussian, black, 2, 1, 1, 1);");
             heartsBox.getChildren().add(livesLabel);
         }
 
@@ -237,27 +268,57 @@ public class GameScene {
         TrashType[] types = TrashType.values();
         int binCount = types.length;
 
+        // Tính toán ban đầu
         double binWidth = (double) config.window.width / binCount;
-        double binHeight = 70; // Giảm chiều cao để thùng xuống thấp hơn
+        double binHeight = 90;
         double yPos = config.window.height - binHeight;
 
         for (int i = 0; i < binCount; i++) {
             double xPos = i * binWidth;
-            TrashBin bin = new TrashBin(xPos, yPos, binWidth, binHeight - 20, types[i]); // -20 để chừa chỗ cho label
+            TrashBin bin = new TrashBin(xPos, yPos, binWidth, binHeight - 30, types[i]);
             trashBins.add(bin);
             root.getChildren().add(bin.getView());
             
-            // Thêm label tên loại rác
+            // Thêm label tên loại rác với style đẹp hơn
             Label binLabel = new Label(getBinTypeName(types[i]));
-            binLabel.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+            binLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
             binLabel.setTextFill(Color.WHITE);
-            binLabel.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7); -fx-padding: 2 5 2 5; -fx-background-radius: 3;");
+            binLabel.setStyle("-fx-background-color: rgba(0, 0, 0, 0.8); -fx-padding: 5 10 5 10; -fx-background-radius: 5;");
             
-            // Căn giữa label trong mỗi bin
-            binLabel.setLayoutX(xPos + (binWidth / 2) - 30); // Ước tính width của label ~60px
-            binLabel.setLayoutY(config.window.height - 18);
+            // Bind vị trí label với kích thước scene để responsive
+            final int binIndex = i;
+            binLabel.layoutXProperty().bind(
+                scene.widthProperty()
+                    .divide(binCount)
+                    .multiply(binIndex)
+                    .add(scene.widthProperty().divide(binCount).divide(2))
+                    .subtract(40)
+            );
+            binLabel.layoutYProperty().bind(scene.heightProperty().subtract(25));
             
             root.getChildren().add(binLabel);
+        }
+        
+        // Listener để cập nhật vị trí và kích thước bins khi resize
+        scene.widthProperty().addListener((obs, oldVal, newVal) -> updateTrashBinsLayout());
+        scene.heightProperty().addListener((obs, oldVal, newVal) -> updateTrashBinsLayout());
+    }
+    
+    // Cập nhật layout của trash bins khi resize
+    private void updateTrashBinsLayout() {
+        if (trashBins.isEmpty()) return;
+        
+        double sceneWidth = scene.getWidth();
+        double sceneHeight = scene.getHeight();
+        int binCount = trashBins.size();
+        double binWidth = sceneWidth / binCount;
+        double binHeight = 90;
+        double yPos = sceneHeight - binHeight;
+        
+        for (int i = 0; i < trashBins.size(); i++) {
+            TrashBin bin = trashBins.get(i);
+            double xPos = i * binWidth;
+            bin.updatePosition(xPos, yPos, binWidth, binHeight - 30);
         }
     }
     
@@ -277,23 +338,25 @@ public class GameScene {
     }
 
     private void setupSettingsAndPauseMenu() {
-        settingsButton = new Button("Tùy chọn");
+        settingsButton = new Button("⚙ Tùy chọn");
         settingsButton.setFocusTraversable(false);
-        settingsButton.setFont(Font.font("Arial", 16));
-        settingsButton.layoutXProperty().bind(root.widthProperty().subtract(settingsButton.widthProperty()).subtract(20));
-        settingsButton.setLayoutY(10);
+        settingsButton.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        settingsButton.setStyle("-fx-background-color: rgba(50, 50, 50, 0.8); -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 15 8 15;");
+        settingsButton.layoutXProperty().bind(root.widthProperty().subtract(settingsButton.widthProperty()).subtract(30));
+        settingsButton.setLayoutY(70);
 
-        pauseMenu = new VBox(15);
+        pauseMenu = new VBox(20);
         pauseMenu.setAlignment(Pos.CENTER);
-        pauseMenu.setStyle("-fx-background-color: rgba(40, 40, 40, 0.85); -fx-background-radius: 10; -fx-padding: 25;");
+        pauseMenu.setStyle("-fx-background-color: rgba(30, 30, 30, 0.95); -fx-background-radius: 15; -fx-padding: 40; -fx-border-color: #4CAF50; -fx-border-width: 3; -fx-border-radius: 15;");
+        pauseMenu.setMinWidth(400);
 
         pauseStatusLabel = new Label("");
-        pauseStatusLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 16));
+        pauseStatusLabel.setFont(Font.font("Arial", FontWeight.BOLD, 20));
         pauseStatusLabel.setTextFill(Color.WHITE);
 
         // Luôn khởi tạo pauseChancesLabel, nhưng tùy player2 để bật/tắt
         pauseChancesLabel = new Label("Lượt tạm dừng còn lại: 3");
-        pauseChancesLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 14));
+        pauseChancesLabel.setFont(Font.font("Arial", FontWeight.NORMAL, 16));
         pauseChancesLabel.setTextFill(Color.LIGHTGRAY);
 
         if (player2 == null) {
@@ -301,15 +364,18 @@ public class GameScene {
             pauseChancesLabel.setVisible(false); // ẩn hẳn khỏi giao diện
         }
 
-        pauseResumeButton = new Button("Tạm dừng");
+        pauseResumeButton = new Button("⏸ Tạm dừng");
         pauseResumeButton.setFocusTraversable(false);
-        pauseResumeButton.setFont(Font.font("Arial", 20));
+        pauseResumeButton.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        pauseResumeButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 12 30 12 30;");
+        pauseResumeButton.setMinWidth(250);
 
         // Thêm nút thoát (đầu hàng)
-        surrenderButton = new Button("Thoát");
+        surrenderButton = new Button("🚪 Thoát");
         surrenderButton.setFocusTraversable(false);
-        surrenderButton.setFont(Font.font("Arial", 20));
-        surrenderButton.setStyle("-fx-background-color: #d9534f; -fx-text-fill: white;");
+        surrenderButton.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        surrenderButton.setStyle("-fx-background-color: #d9534f; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 12 30 12 30;");
+        surrenderButton.setMinWidth(250);
         surrenderButton.setOnAction(e -> {
             // Xác nhận người chơi có chắc chắn muốn thoát không
             if (player2 != null) {
@@ -342,14 +408,14 @@ public class GameScene {
                 if (gameLoop.isPaused()) {
                     gameLoop.resumeGame();
                     Client.getInstance().requestResumeGame();
-                    pauseResumeButton.setText("Tạm dừng");
+                    pauseResumeButton.setText("⏸ Tạm dừng");
                     pauseStatusLabel.setText("");
                     pauseMenu.setVisible(false);
                     settingsButton.setDisable(false);
                 } else {
                     gameLoop.pauseGame();
                     Client.getInstance().requestPauseGame();
-                    pauseResumeButton.setText("Tiếp tục");
+                    pauseResumeButton.setText("▶ Tiếp tục");
                     pauseStatusLabel.setText("Trò chơi đã tạm dừng");
                     settingsButton.setDisable(true);
                 }
