@@ -26,6 +26,9 @@ public class ClientTCPHandler implements Runnable {
     private String username;
     private UserProfileServer userProfile; // Lưu trữ toàn bộ thông tin user
     private InetSocketAddress udpAddress;
+    private boolean isWaiting = false;
+    private String challengerName;
+    private String opponentName;
     private GameRoom currentRoom = null;
 
     public ClientTCPHandler(Socket socket, GameServer server) {
@@ -38,6 +41,7 @@ public class ClientTCPHandler implements Runnable {
     public void setUdpAddress(InetSocketAddress address) { this.udpAddress = address; }
     public InetSocketAddress getUdpAddress() { return this.udpAddress; }
     public String getUsername() { return this.username; }
+    public void setUsername(String username) { this.username = username; }
     public UserProfileServer getUserProfile() { return this.userProfile; } // Getter cho profile
 
     @Override
@@ -54,6 +58,13 @@ public class ClientTCPHandler implements Runnable {
         } catch (IOException e) {
             System.out.println("Client đã ngắt kết nối: " + (username != null ? username : clientSocket.getInetAddress()));
         } finally {
+            if (currentRoom != null) {
+                try {
+                    sendMessage("FORCE_SURRENDER");
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
             server.removeClient(this); // Báo cho server biết client đã rời
             server.broadcastOnlineList();
             try {
@@ -83,11 +94,31 @@ public class ClientTCPHandler implements Runnable {
             System.err.println("Lỗi khi đóng socket cho " + username + ": " + e.getMessage());
         }
 
-        System.out.println("→ Đã cleanup xong cho " + (username != null ? username : "UNKNOWN"));
+        System.out.println("Đã cleanup xong cho " + (username != null ? username : "UNKNOWN"));
     }
 
-    public boolean isOnline(){
-        return server.isOnline(this);
+    public boolean isWaiting() {
+        return isWaiting;
+    }
+
+    public void setWaiting(boolean waiting) {
+        this.isWaiting = waiting;
+    }
+
+    public String getChallengerName() {
+        return challengerName;
+    }
+
+    public void setChallengerName(String s) {
+        this.challengerName = s;
+    }
+
+    public String getOpponentName() {
+        return opponentName;
+    }
+
+    public void setOpponentName(String s) {
+        this.opponentName = s;
     }
 
     private void handleClientMessage(String message) {
@@ -120,6 +151,12 @@ public class ClientTCPHandler implements Runnable {
                     DatabaseResponse<UserProfileServer> response = DatabaseConnector.validateUser(user, pass);
 
                     if (response.isSuccess()) {
+                        // Kiểm tra nếu người dùng đã đăng nhập ở client khác
+                        ClientTCPHandler existingHandler = server.findHandlerByUsername(user);
+                        if (existingHandler != null) {
+                            sendMessage("LOGIN_FAILED;Tài khoản này đã được đăng nhập ở thiết bị khác.");
+                            break; // Ngắt, không xử lý đăng nhập tiếp
+                        }
                         this.userProfile = response.getData();
                         this.username = this.userProfile.getUsername();
 
@@ -137,6 +174,17 @@ public class ClientTCPHandler implements Runnable {
                 }
                 break;
 
+            case "LOGOUT":
+                String[] logoutParts = message.split(";");
+                if (logoutParts[1]==null){
+                    sendMessage("Khong nhan duoc Username cua nguoi dang xuat");
+                    return;
+                }
+                else{
+                    server.changeClientUsername(this, null);
+                    server.broadcastOnlineList();
+                }
+
             case "READY":
                 // Message format: "READY;username;playerCount" hoặc "READY;username"
                 String[] readyParts = message.split(";");
@@ -150,6 +198,64 @@ public class ClientTCPHandler implements Runnable {
                 } else if (readyParts.length == 2) {
                     server.playerIsReady(this, 2); // Mặc định là 2 người chơi
                 }
+                break;
+
+            case "CHALLENGE_REQUEST":
+                // Message format: "CHALLENGE_REQUEST;senderUsername;receiverUsername"
+                String[] challengeParts = message.split(";");
+                if (username == null) {
+                    sendMessage("ERROR;Bạn cần đăng nhập trước khi gửi lời thách đấu.");
+                    return;
+                }if (challengeParts.length == 3) {
+                    server.sendChallengeRequest(server.findHandlerByUsername(challengeParts[2]), challengeParts[1]);
+                }
+                break;
+
+            case "ACCEPT_CHALLENGE":
+                // Message format: "ACCEPT_CHALLENGE;senderUsername"
+                String[] acceptParts = message.split(";");
+                if (username == null) {
+                    sendMessage("ERROR;Bạn cần đăng nhập trước khi chấp nhận.");
+                    return;
+                }
+                if (acceptParts.length == 2) {
+                    server.challengeAccepted(server.findHandlerByUsername(acceptParts[1]), this);
+                }
+                break;
+
+            case "DECLINE_CHALLENGE":
+                // Message format: "ACCEPT_CHALLENGE;senderUsername"
+                String[] declineParts = message.split(";");
+                if (username == null) {
+                    sendMessage("ERROR;Bạn cần đăng nhập trước khi từ chối.");
+                    return;
+                }
+                if (declineParts.length == 2) {
+                    ClientTCPHandler senderHandler = server.findHandlerByUsername(declineParts[1]);
+                    this.setWaiting(false);
+                    this.setChallengerName(null);
+                    server.challengeDeclined(senderHandler);
+                }
+                break;
+
+            case "WAITING_ON":
+                setWaiting(true);
+                break;
+
+            case "WAITING_OFF":
+                setWaiting(false);
+                break;
+
+            case "SET_CHALLENGER_NAME":
+                // Message format: "SET_CHALLENGER_NAME;challengerName"
+                String[] chalParts = message.split(";");
+                this.setChallengerName(chalParts[1]);
+                break;
+
+            case "SET_OPPONENT_NAME":
+                // Message format: "SET_OPPONENT_NAME;opponentName"
+                String[] oppParts = message.split(";");
+                this.setChallengerName(oppParts[1]);
                 break;
 
             case "CANCEL_WAITING":
@@ -215,7 +321,6 @@ public class ClientTCPHandler implements Runnable {
                     System.err.println("Ko the lay DS nguoi choi: " + usersResponse.getMessage());
                 }
                 break;
-
         }
     }
 }

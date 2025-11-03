@@ -739,7 +739,10 @@ public class GameScene {
         Button backToMenuButton = new Button("Trở về Menu");
         backToMenuButton.setFocusTraversable(false);
         backToMenuButton.setFont(Font.font("Arial", 20));
-        backToMenuButton.setOnAction(e -> Main.getInstance().showMenuScene());
+        backToMenuButton.setOnAction(e -> {
+            Client.getInstance().sendMessage("WAITING_OFF");
+            Main.getInstance().showMenuScene();
+        });
 
         gameOverPane.getChildren().addAll(gameOverLabel, winnerLabel, backToMenuButton);
 

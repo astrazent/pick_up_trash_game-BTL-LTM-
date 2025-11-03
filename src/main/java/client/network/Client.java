@@ -1,5 +1,7 @@
 package client.network;
 
+import client.scenes.*;
+import com.google.gson.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -21,13 +23,14 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 import client.Main;
+import com.google.gson.stream.JsonReader;
+import javafx.scene.Scene;
+import server.config.NetworkConfig;
+import client.data.MatchHistory;
 import client.data.UserProfile;
 import client.game.Player;
 import client.game.Trash;
 import client.game.TrashType;
-import client.scenes.GameScene;
-import client.scenes.HistoryScene;
-import client.scenes.LeaderboardScene;
 import javafx.application.Platform;
 import server.config.NetworkConfig;
 
@@ -112,7 +115,7 @@ public class Client {
                     HistoryScene scene = Main.getInstance().getActiveHistoryScene();
                     if (scene != null) {
                         scene.updateHistory(historyData);
-                        System.out.println("✅ Đã cập nhật danh sách lịch sử đấu (" + historyData.size() + " trận)");
+                        System.out.println("Đã cập nhật danh sách lịch sử đấu (" + historyData.size() + " trận)");
                     }
                 });
             }
@@ -125,7 +128,7 @@ public class Client {
                     LeaderboardScene scene = Main.getInstance().getActiveLeaderboardScene();
                     if (scene != null) {
                         scene.updateLeaderboard(leaderboardData);
-                        System.out.println("🏆 Đã cập nhật bảng xếp hạng (" + leaderboardData.size() + " người chơi)");
+                        System.out.println("Đã cập nhật bảng xếp hạng (" + leaderboardData.size() + " người chơi)");
                     }
                 });
             }
@@ -134,7 +137,7 @@ public class Client {
             }
 
         } catch (Exception e) {
-            System.err.println("⚠️ Lỗi parse JSON từ server: " + e.getMessage());
+            System.err.println("Lỗi parse JSON từ server: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -306,14 +309,14 @@ public class Client {
                     }
                 }
                 break;
-            
+
             case "TRASH_REMOVED": // Server: TRASH_REMOVED;trashId
                 if (game != null && messageParts.length == 2) {
                     int trashId = Integer.parseInt(messageParts[1]);
                     game.removeTrash(trashId);
                 }
                 break;
-                
+
             case "WRONG_CLASSIFY":
                 if (game != null && messageParts.length == 2) {
                     String playerName = messageParts[1];
@@ -512,6 +515,29 @@ public class Client {
                     System.err.println("Loi phan tich JSON ALL_USERS_DATA: " + e.getMessage());
                 }
                 break;
+
+            case "FORCE_SURRENDER":
+                requestSurrender();
+                break;
+
+            case "RECEIVE_CHALLENGE":
+                sendMessage("SET_CHALLENGER_NAME;"+messageParts[1]);
+                MenuScene.showChallengePopup(messageParts[1]);
+                break;
+
+            case "CHALLENGE_DECLINED":
+                Main.getInstance().showMenuScene();
+                MenuScene.showChallengeDeclinedPopup();
+                break;
+
+            case "AUTO_DECLINE":
+                WaitingAcceptanceScene.showAutoDeclinePopup();
+                break;
+
+            case "OPPONENT_OFFLINE":
+                Main.getInstance().showMenuScene();
+                MenuScene.showOpponentOfflinePopup();
+                break;
         }
     }
     // MỚI: Hàm để gửi yêu cầu tạm dừng game đến server
@@ -612,5 +638,4 @@ public class Client {
             }
         });
     }
-
 }

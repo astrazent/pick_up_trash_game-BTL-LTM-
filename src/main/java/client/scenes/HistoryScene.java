@@ -27,6 +27,13 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
 public class HistoryScene {
     private Scene scene;
     private TableView<MatchHistoryEntry> table;
@@ -34,7 +41,7 @@ public class HistoryScene {
     public HistoryScene() {
         // Container chính với gradient background
         StackPane root = new StackPane();
-        
+
         LinearGradient gradient = new LinearGradient(
             0, 0, 1, 1, true, CycleMethod.NO_CYCLE,
             new Stop(0, Color.web("#4facfe")),
@@ -66,17 +73,10 @@ public class HistoryScene {
         subtitle.setFill(Color.web("#7f8c8d"));
 
         table = new TableView<>();
-        table.setPrefWidth(640);
-        table.setPrefHeight(350);
         table.setStyle(
-            "-fx-background-color: #ecf0f1; " +
-            "-fx-background-radius: 10;"
+                "-fx-background-color: #ecf0f1; " +
+                        "-fx-background-radius: 10;"
         );
-
-        TableColumn<MatchHistoryEntry, String> yourNameCol = new TableColumn<>("Your Name");
-        yourNameCol.setCellValueFactory(new PropertyValueFactory<>("yourName"));
-        yourNameCol.setPrefWidth(120);
-        yourNameCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<MatchHistoryEntry, String> opponentCol = new TableColumn<>("Opponent");
         opponentCol.setCellValueFactory(new PropertyValueFactory<>("opponentName"));
@@ -85,9 +85,9 @@ public class HistoryScene {
 
         TableColumn<MatchHistoryEntry, String> resultCol = new TableColumn<>("Result");
         resultCol.setCellValueFactory(new PropertyValueFactory<>("result"));
-        resultCol.setPrefWidth(100);
+        resultCol.setPrefWidth(60);
         resultCol.setStyle("-fx-alignment: CENTER;");
-        
+
         // Custom cell factory để tô màu kết quả
         resultCol.setCellFactory(column -> new javafx.scene.control.TableCell<MatchHistoryEntry, String>() {
             @Override
@@ -99,7 +99,7 @@ public class HistoryScene {
                 } else {
                     String displayText = "";
                     String style = "-fx-alignment: CENTER; -fx-font-weight: bold; ";
-                    
+
                     if (item.equalsIgnoreCase("WIN")) {
                         displayText = "✅ WIN";
                         style += "-fx-text-fill: #27ae60; -fx-background-color: #d5f4e6;";
@@ -113,7 +113,7 @@ public class HistoryScene {
                         displayText = item;
                         style += "-fx-text-fill: #34495e;";
                     }
-                    
+
                     setText(displayText);
                     setStyle(style);
                 }
@@ -122,15 +122,27 @@ public class HistoryScene {
 
         TableColumn<MatchHistoryEntry, String> startCol = new TableColumn<>("Start Date");
         startCol.setCellValueFactory(new PropertyValueFactory<>("startDate"));
-        startCol.setPrefWidth(150);
+        startCol.setPrefWidth(120);
         startCol.setStyle("-fx-alignment: CENTER;");
 
         TableColumn<MatchHistoryEntry, String> dateCol = new TableColumn<>("End Date");
         dateCol.setCellValueFactory(new PropertyValueFactory<>("datePlayed"));
-        dateCol.setPrefWidth(150);
+        dateCol.setPrefWidth(120);
         dateCol.setStyle("-fx-alignment: CENTER;");
 
-        table.getColumns().addAll(yourNameCol, opponentCol, resultCol, startCol, dateCol);
+        TableColumn<MatchHistoryEntry, String> durationCol = new TableColumn<>("Duration");
+        durationCol.setCellValueFactory(new PropertyValueFactory<>("duration"));
+        durationCol.setPrefWidth(80);
+        durationCol.setStyle("-fx-alignment: CENTER;");
+
+        table.getColumns().addAll(opponentCol, resultCol, startCol, dateCol, durationCol);
+
+        double totalWidth = 0;
+        for (TableColumn<?, ?> col : table.getColumns()) {
+            totalWidth += col.getPrefWidth();
+        }
+
+        table.setMaxWidth(totalWidth + 16);
 
         Button backBtn = new Button("⬅ BACK TO MENU");
         backBtn.setPrefSize(200, 45);
@@ -159,7 +171,7 @@ public class HistoryScene {
         backBtn.setOnAction(e -> Main.getInstance().showMenuScene());
 
         layout.getChildren().addAll(icon, title, subtitle, table, backBtn);
-        
+
         root.getChildren().add(layout);
         scene = new Scene(root, 750, 650);
     }
@@ -205,13 +217,53 @@ public class HistoryScene {
         private final String result;
         private final String startDate;
         private final String datePlayed;
+        private final String duration; // ⏱thêm thuộc tính mới
+
+        private static final DateTimeFormatter INPUT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        private static final DateTimeFormatter OUTPUT_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy");
+
+        private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
         public MatchHistoryEntry(String yourName, String opponentName, String result, String startDate, String datePlayed) {
             this.yourName = yourName;
             this.opponentName = opponentName;
             this.result = result;
-            this.startDate = startDate;
-            this.datePlayed = datePlayed;
+            this.startDate = formatDate(startDate);
+            this.datePlayed = formatDate(datePlayed);
+
+            // Tính thời lượng trận đấu nếu có đủ thông tin
+            String computedDuration = "N/A";
+            try {
+                if (startDate != null && datePlayed != null &&
+                        !startDate.isEmpty() && !datePlayed.isEmpty()) {
+
+                    LocalDateTime start = LocalDateTime.parse(startDate, FORMATTER);
+                    LocalDateTime end = LocalDateTime.parse(datePlayed, FORMATTER);
+                    Duration d = Duration.between(start, end);
+
+                    long minutes = d.toMinutes();
+                    long seconds = d.getSeconds() % 60;
+                    computedDuration = String.format("%02d:%02d", minutes, seconds);
+                }
+            } catch (Exception e) {
+                System.out.println("Lỗi khi tính duration: " + e.getMessage());
+            }
+
+            this.duration = computedDuration;
+        }
+
+        // Hàm tiện ích để đổi format
+        private static String formatDate(String dateStr) {
+            try {
+                if (dateStr == null || dateStr.isEmpty()) return "N/A";
+                LocalDateTime dateTime = LocalDateTime.parse(dateStr, INPUT_FORMATTER);
+                // Gán múi giờ Việt Nam
+                ZoneId vietnamZone = ZoneId.of("Asia/Ho_Chi_Minh");
+                ZonedDateTime vnTime = dateTime.atZone(vietnamZone);
+                return vnTime.format(OUTPUT_FORMATTER);
+            } catch (Exception e) {
+                return dateStr; // fallback giữ nguyên nếu parse lỗi
+            }
         }
 
         public String getYourName() { return yourName; }
@@ -219,5 +271,6 @@ public class HistoryScene {
         public String getResult() { return result; }
         public String getStartDate() { return startDate; }
         public String getDatePlayed() { return datePlayed; }
+        public String getDuration() { return duration; }
     }
 }
