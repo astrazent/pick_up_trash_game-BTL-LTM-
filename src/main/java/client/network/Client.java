@@ -1,5 +1,6 @@
 package client.network;
 
+import client.scenes.*;
 import com.google.gson.*;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -21,15 +22,13 @@ import com.google.gson.reflect.TypeToken;
 
 import client.Main;
 import com.google.gson.stream.JsonReader;
+import javafx.scene.Scene;
 import server.config.NetworkConfig;
 import client.data.MatchHistory;
 import client.data.UserProfile;
 import client.game.Player;
 import client.game.Trash;
 import client.game.TrashType;
-import client.scenes.GameScene;
-import client.scenes.HistoryScene;
-import client.scenes.LeaderboardScene;
 import javafx.application.Platform;
 
 import java.io.*;
@@ -514,6 +513,33 @@ public class Client {
             case "FORCE_SURRENDER":
                 requestSurrender();
                 break;
+
+            case "RECEIVE_CHALLENGE":
+                System.out.println("Nhan duoc loi thach dau tu nguoi choi: "+messageParts[1]);
+                sendMessage("SET_CHALLENGER_NAME;"+messageParts[1]);
+                MenuScene.showChallengePopup(messageParts[1]);
+                break;
+
+            case "CHALLENGE_DECLINED":
+                Main.getInstance().showMenuScene();
+                MenuScene.showChallengeDeclinedPopup();
+                System.out.println("Doi thu da tu choi loi thach dau");
+                break;
+
+            case "AUTO_DECLINE":
+                WaitingAcceptanceScene.showAutoDeclinePopup();
+                System.out.println("Nguoi choi nay dang thach dau hoac nhan loi thach dau. Ko the gui loi thach dau!");
+                break;
+
+            case "OPPONENT_OFFLINE":
+                Main.getInstance().showMenuScene();
+                MenuScene.showOpponentOfflinePopup();
+                System.out.println("Doi thu da ngat ket noi!");
+                break;
+
+            case "CHALLENGER_OFFLINE":
+                System.out.println("Doi thu da ngat ket noi!");
+                break;
         }
     }
     // MỚI: Hàm để gửi yêu cầu tạm dừng game đến server
@@ -614,5 +640,4 @@ public class Client {
             }
         });
     }
-
 }

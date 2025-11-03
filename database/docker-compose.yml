@@ -4,6 +4,7 @@ services:
     container_name: pick_up_trash_container
     restart: always
     environment:
+      - TZ=Asia/Ho_Chi_Minh
       - MYSQL_ROOT_PASSWORD=55566
       - MYSQL_DATABASE=pick_up_trash
     ports:
@@ -11,16 +12,7 @@ services:
     volumes:
       - mariadb_data_pt:/var/lib/mysql
     healthcheck:
-      test:
-        [
-          'CMD',
-          'mysqladmin',
-          '-uroot',
-          '-p55566',
-          'ping',
-          '-h',
-          'localhost',
-        ]
+      test: ['CMD', 'mysqladmin', '-uroot', '-p55566', 'ping', '-h', 'localhost']
       interval: 10s
       retries: 5
       start_period: 10s

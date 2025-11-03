@@ -12,7 +12,7 @@ import javafx.stage.Stage;
 public class Main extends Application {
 
     private static Main instance;
-    private Stage primaryStage;
+    private static Stage primaryStage;
     private GameConfig gameConfig;
     private LoginScene loginScene;
     private Scene currentScene;
@@ -25,6 +25,7 @@ public class Main extends Application {
     private LeaderboardScene activeLeaderboardScene;
     private HistoryScene activeHistoryScene; // <-- THÊM BIẾN NÀY
     private MenuScene activeMenuScene;
+    private WaitingAcceptanceScene activeWaitingAcceptanceScene;
     public Main() { instance = this; }
     public static Main getInstance() { return instance; }
 
@@ -36,6 +37,7 @@ public class Main extends Application {
         return activeLeaderboardScene;
     }
     public MenuScene getActiveMenuScene() {return activeMenuScene; }
+    public WaitingAcceptanceScene getActiveWaitingAcceptanceScene() {return activeWaitingAcceptanceScene; }
 
     public HistoryScene getActiveHistoryScene() {
         return activeHistoryScene;
@@ -106,6 +108,13 @@ public class Main extends Application {
         primaryStage.setScene(this.currentScene);
     }
 
+    public void showWaitingAcceptanceScene(String opponentName) {
+        this.activeGameScene = null; // Không có game nào đang chạy
+        WaitingAcceptanceScene waitingAcceptanceScene = new WaitingAcceptanceScene(opponentName);
+        this.currentScene = waitingAcceptanceScene.getScene();
+        primaryStage.setScene(this.currentScene);
+    }
+
     // Sửa hàm showGameScene (2 người chơi)
     public void showGameScene(int playerCount, String p1Name, String p2Name) {
         GameScene gameScene = new GameScene(playerCount, p1Name, p2Name);
@@ -159,4 +168,8 @@ public class Main extends Application {
     @Override
     public void stop() { Client.getInstance().close(); }
     public static void main(String[] args) { launch(args); }
+
+    public static Stage getPrimaryStage() {
+        return primaryStage;
+    }
 }

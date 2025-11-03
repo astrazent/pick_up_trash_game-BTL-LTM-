@@ -69,7 +69,7 @@ public class HistoryScene {
             totalWidth += col.getPrefWidth();
         }
 
-        table.setMaxWidth(totalWidth + 2);
+        table.setMaxWidth(totalWidth + 16);
 
         Button backBtn = new Button("Back to Menu");
         backBtn.setPrefSize(150, 40);

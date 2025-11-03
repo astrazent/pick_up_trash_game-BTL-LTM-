@@ -118,7 +118,73 @@ public class GameServer {
         }
     }
 
+    public synchronized void challengeAccepted(server.network.ClientTCPHandler senderPlayer, server.network.ClientTCPHandler receiverPlayer) {
+        if (clientHandlers.contains(senderPlayer) && clientHandlers.contains(receiverPlayer)) {
+            System.out.println("Tao phong game moi.");
+            server.network.GameRoom newRoom = new server.network.GameRoom(senderPlayer, receiverPlayer, this);
+            senderPlayer.setCurrentRoom(newRoom);
+            receiverPlayer.setCurrentRoom(newRoom);
+            System.out.println("check room_player-is-ready: " + System.identityHashCode(newRoom));
+            activeRooms.add(newRoom);
+            new Thread(newRoom).start();
+        }
+        else{
+            System.out.println("Doi thu khong the vao phong!");
+        }
+    }
+
+    public synchronized void sendChallengeRequest(ClientTCPHandler opponentHandler, String senderUsername) {
+        ClientTCPHandler challengerHandler = findHandlerByUsername(senderUsername);
+        String opponent=opponentHandler.getUsername();
+        if (challengerHandler == null) {
+            return;
+        }
+
+        // Nếu đối thủ đang chờ phản hồi một thách đấu khác
+        if (opponentHandler.isWaiting()) {
+            System.out.println("[SERVER] " + opponent + " đang chờ phản hồi -> tự động từ chối thách đấu của " + senderUsername);
+            challengerHandler.setWaiting(false);
+            challengerHandler.setOpponentName(null);
+            challengerHandler.sendMessage("AUTO_DECLINE;" + opponent);
+            return;
+        }
+
+        if (opponentHandler != null) {
+            opponentHandler.setWaiting(true);
+            opponentHandler.setChallengerName(senderUsername);
+            opponentHandler.sendMessage("RECEIVE_CHALLENGE;" + senderUsername);
+        }
+    }
+
+    public synchronized void challengeDeclined(server.network.ClientTCPHandler senderPlayer) {
+        if (clientHandlers.contains(senderPlayer)) {
+            senderPlayer.setWaiting(false);
+            senderPlayer.setOpponentName(null);
+            senderPlayer.sendMessage("CHALLENGE_DECLINED");
+        }
+        else{
+            System.out.println("Thong diep Decline ko hop le");
+        }
+    }
+
     public void removeClient(server.network.ClientTCPHandler handler) {
+        if (handler.isWaiting()){
+            if (handler.getChallengerName()!=null){
+                String challengerName=handler.getChallengerName();
+                ClientTCPHandler challengerHandler = findHandlerByUsername(challengerName);
+                challengerHandler.setWaiting(false);
+                challengerHandler.setOpponentName(null);
+                challengerHandler.sendMessage("OPPONENT_OFFLINE");
+            }
+            if (handler.getOpponentName()!=null){
+                String opponentName=handler.getOpponentName();
+                ClientTCPHandler opponentHandler = findHandlerByUsername(opponentName);
+                opponentHandler.setWaiting(false);
+                opponentHandler.setChallengerName(null);
+                opponentHandler.sendMessage("CHALLENGER_OFFLINE");
+            }
+        }
+
         // Dọn tài nguyên socket
         handler.cleanup();
 
@@ -132,8 +198,7 @@ public class GameServer {
         // Xóa client khỏi danh sách đang hoạt động
         clientHandlers.remove(handler);
 
-        // Nếu phòng đó không còn ai, thì xóa phòng khỏi danh sách activeRooms
-        if (room != null) { // isEmpty() là hàm bạn có thể thêm vào GameRoom
+        if (room != null) {
             activeRooms.remove(room);
         }
     }
@@ -186,7 +251,6 @@ public class GameServer {
             broadcastOnlineList();
         }
     }
-
 
     public void removeRoom(GameRoom room) {
         activeRooms.remove(room);
